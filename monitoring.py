@@ -1,17 +1,19 @@
+import datetime
 import json
 import logging
 import os
+import re
 import requests
-import time
-import traceback
-import selenium
+# import time
+from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
+from selenium.common import exceptions
 from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
 
 CHROME_DRIVER_PATH = os.environ["CHROME_DRIVER_PATH"]
 FAILED_STATUS_CODE = -1
-PAGE_IS_UP = 1
-PAGE_IS_DOWN = 0
+SUCCESS = 1
+FAILURE = 0
 DEFAULT_LOG_LEVEL = "INFO"
 DEFAULT_DOM_COMPLETE = 5
 LOG_LEVELS = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
@@ -50,70 +52,86 @@ def _create_logger():
 
 def _monitor(url):
     dom_to_complete_sec = _get_dom_complete_env()
-    driver = webdriver.Chrome(CHROME_DRIVER_PATH)
-    is_dom_complete = False
-    try:
-        driver.get(url)
-        wait = WebDriverWait(driver, dom_to_complete_sec)
-        check_dom = dom_is_completed()
-        is_dom_complete = wait.until(check_dom)
-        # web_metrics = _get_page_metrics(driver, url)
-        # if web_metrics:
-        #     _send_metrics(web_metrics)
-        #     logger.debug("Metrics were sent from region: {}, url: {}".format(os.environ["region"], url))
-    except selenium.common.exceptions.TimeoutException:
-        logger.error("domComplete event didn't occur within the time limit")
-        # TODO: SEND METRICS INDICATING THAT ERROR
-    except Exception as e:
-        logger.error("Error opening url: {}".format(traceback.print_exception()))
-    finally:
-        web_metrics = _get_page_metrics(driver, url, is_dom_complete)
-        if web_metrics:
-            _send_metrics(web_metrics)
-            logger.debug("Metrics were sent from region: {}, url: {}".format(os.environ["region"], url))
-        driver.quit()
+    driver = _get_driver()
+    if driver:
+        is_dom_complete = False
+        try:
+            driver.get(url)
+            wait = WebDriverWait(driver, dom_to_complete_sec)
+            check_dom = dom_is_completed()
+            is_dom_complete = wait.until(check_dom)
+        except exceptions.TimeoutException:
+            logger.info("domComplete event didn't occur within the time limit")
+        finally:
+            web_metrics = _get_page_metrics(driver, url, is_dom_complete)
+            if web_metrics:
+                _send_metrics(web_metrics)
+                logger.debug("Metrics were sent from region: {}, url: {}".format(os.environ["region"], url))
+            driver.quit()
 
 
 def _get_network_data(driver):
     try:
-        js_script = "var performance = window.performance || window.mozPerformance || window.msPerformance || window.webkitPerformance || {}; var network = performance.getEntries() || {}; return network;"
+        js_script = "var performance = window.performance || window.mozPerformance || window.msPerformance || " \
+                    "window.webkitPerformance || {}; var network = performance.getEntries() || {}; return network; "
         network_data = driver.execute_script(js_script)
         return network_data
     except Exception as e:
-        logger.error("Error occurred while getting page metrics: {}".format(traceback.print_exception()))
+        logger.error("Error occurred while getting page metrics. {}".format(e))
         return {}
 
 
 def _get_page_metrics(driver, url, is_dom_complete):
     try:
-        data = {}
+        # yyyy-MM-dd'T'HH:mm:ss.SSSZ
+        js_script_timestamp = "return window.performance.timing.navigationStart"
+        timestamp = datetime.datetime.fromtimestamp(_ms_to_seconds(driver.execute_script(js_script_timestamp)))
+        timestamp_str = "{}Z".format(timestamp.strftime("%Y-%m-%d'T'%H:%M:%S.%f")[:-3])
+        # data = {"@timestamp": time.strftime("%Y-%m-%d'T'%H:%M:%S.%fZ",
+        #                                     time.localtime(_ms_to_seconds(driver.execute_script(js_script_timestamp)))),
+        #         "type": "synthetic-monitoring",
+        #         "metrics": _create_metrics(driver, is_dom_complete)}
+        data = {"@timestamp": timestamp_str,
+                "type": "synthetic-monitoring",
+                "metrics": _create_metrics(driver, is_dom_complete)}
+        # TODO: what to do when status code is empty?
+        dimensions = {"region": os.environ["region"], "url": url}
+        data["dimensions"] = dimensions
+        return data
+    except Exception as e:
+        logger.error("Error occurred while getting page metrics: {}".format(e))
+        return {}
+
+
+def _create_metrics(driver, is_dom_complete):
+    try:
         metrics = {}
         navigation_start = driver.execute_script("return window.performance.timing.navigationStart")
-        navigation_start_seconds = _ms_to_seconds(navigation_start)
         request_start = driver.execute_script("return window.performance.timing.requestStart")
         response_start = driver.execute_script("return window.performance.timing.responseStart")
         if is_dom_complete:
             dom_complete = driver.execute_script("return window.performance.timing.domComplete")
             metrics["time_to_complete.ms"] = dom_complete - navigation_start
-        data["@timestamp"] = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(navigation_start_seconds))
-        data["type"] = "synthetic-monitoring"
         metrics["time_to_first_byte.ms"] = response_start - request_start
         metrics["dom_is_complete"] = 1 if is_dom_complete else 0
-        # TODO: determine if page is up or down:
-        # metrics["up"] = PAGE_IS_UP if dom_complete else PAGE_IS_DOWN
-        data["metrics"] = metrics
-        dimensions = {"region": os.environ["region"], "url": url}
-        data["dimensions"] = dimensions
-        return data
+        status_code = _get_page_status_code(driver)
+        if status_code:
+            # TODO: what 3xx is considered?
+            metrics["status_code"] = status_code
+            if 200 <= status_code < 300:
+                metrics["up"] = SUCCESS
+            elif 400 <= status_code < 600:
+                metrics["up"] = FAILURE
+        return metrics
     except Exception as e:
-        logger.error("Error occurred while getting page metrics: {}".format(traceback.print_exception()))
+        logger.error("Error creating page's metrics. {}".format(e))
         return {}
 
 
 def _send_metrics(metrics):
     try:
         metrics_json = json.dumps(metrics)
-        print(metrics_json)
+        logger.debug(metrics_json)
         port = _get_port_by_protocol()
         url = "{}://{}:{}/?token={}".format(PROTOCOL, LOGZIO_LISTENER, port, LOGZIO_TOKEN)
         response = requests.post(url, data=metrics_json)
@@ -122,7 +140,7 @@ def _send_metrics(metrics):
         else:
             logger.error("Couldn't send metrics. Response code from logzio: {}. {}".format(response.status_code, response.text))
     except Exception as e:
-        logger.error("Error occurred while trying to send metrics: {}".format(traceback.print_exception()))
+        logger.error("Error occurred while trying to send metrics. {}".format(e))
 
 
 def _get_port_by_protocol():
@@ -147,10 +165,47 @@ def _get_dom_complete_env():
         return DEFAULT_DOM_COMPLETE
 
 
+def _get_driver():
+    try:
+        desired_capabilities = DesiredCapabilities.CHROME
+        desired_capabilities['goog:loggingPrefs'] = {'browser': 'ALL', 'performance': 'ALL'}
+        options = webdriver.ChromeOptions()
+        options.add_experimental_option('perfLoggingPrefs', {
+            'enableNetwork': True,
+        })
+        driver = webdriver.Chrome(executable_path=CHROME_DRIVER_PATH,
+                                  desired_capabilities=desired_capabilities)
+        return driver
+    except Exception as e:
+        logger.error("Error creating web driver. {}".format(e))
+        return {}
+
+
+def _get_page_status_code(driver):
+    try:
+        performance_logs = driver.get_log('performance')
+        response = next(json.loads(log["message"]) for log in performance_logs if "headersText" in log["message"])
+        status_code = _extract_status_code_from_response(response)
+        return status_code
+    except Exception as e:
+        logger.error("Error occurred while getting performance logs: {}".format(e))
+        return {}
+
+
+def _extract_status_code_from_response(response):
+    try:
+        status_code_line = response["message"]["params"]["headersText"].split("\r\n")[0]
+        line_regex = r"HTTP/1.1\s(\d{3})\s.*"
+        status_code_index = re.search(line_regex, status_code_line).regs[1]
+        status_code = status_code_line[status_code_index[0]:status_code_index[1]]
+        return int(status_code)
+    except Exception as e:
+        logger.error("Error getting page's status code. {}".format(e))
+        return {}
+
+
 logger = _create_logger()
 _monitor("https://www.logz.io")
-# _monitor("http://the-internet.herokuapp.com/status_codes/404")
-
 
 # def handler(event, context):
 #     _monitor("https//www.youtube.com")
