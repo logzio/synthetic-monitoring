@@ -1,16 +1,15 @@
+import chromedriver_binary
 import datetime
 import json
 import logging
 import os
 import re
 import requests
-# import time
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 from selenium.common import exceptions
 from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
 
-CHROME_DRIVER_PATH = os.environ["CHROME_DRIVER_PATH"]
 FAILED_STATUS_CODE = -1
 SUCCESS = 1
 FAILURE = 0
@@ -83,18 +82,12 @@ def _get_network_data(driver):
 
 def _get_page_metrics(driver, url, is_dom_complete):
     try:
-        # yyyy-MM-dd'T'HH:mm:ss.SSSZ
         js_script_timestamp = "return window.performance.timing.navigationStart"
-        timestamp = datetime.datetime.fromtimestamp(_ms_to_seconds(driver.execute_script(js_script_timestamp)))
-        timestamp_str = "{}Z".format(timestamp.strftime("%Y-%m-%d'T'%H:%M:%S.%f")[:-3])
-        # data = {"@timestamp": time.strftime("%Y-%m-%d'T'%H:%M:%S.%fZ",
-        #                                     time.localtime(_ms_to_seconds(driver.execute_script(js_script_timestamp)))),
-        #         "type": "synthetic-monitoring",
-        #         "metrics": _create_metrics(driver, is_dom_complete)}
+        timestamp = datetime.datetime.fromtimestamp(_ms_to_seconds(driver.execute_script(js_script_timestamp)), tz=datetime.timezone.utc)
+        timestamp_str = "{}Z".format(timestamp.strftime("%Y-%m-%dT%H:%M:s%S.%f")[:-3])
         data = {"@timestamp": timestamp_str,
                 "type": "synthetic-monitoring",
                 "metrics": _create_metrics(driver, is_dom_complete)}
-        # TODO: what to do when status code is empty?
         dimensions = {"region": os.environ["region"], "url": url}
         data["dimensions"] = dimensions
         return data
@@ -116,7 +109,6 @@ def _create_metrics(driver, is_dom_complete):
         metrics["dom_is_complete"] = 1 if is_dom_complete else 0
         status_code = _get_page_status_code(driver)
         if status_code:
-            # TODO: what 3xx is considered?
             metrics["status_code"] = status_code
             if 200 <= status_code < 300:
                 metrics["up"] = SUCCESS
@@ -170,11 +162,13 @@ def _get_driver():
         desired_capabilities = DesiredCapabilities.CHROME
         desired_capabilities['goog:loggingPrefs'] = {'browser': 'ALL', 'performance': 'ALL'}
         options = webdriver.ChromeOptions()
-        options.add_experimental_option('perfLoggingPrefs', {
-            'enableNetwork': True,
-        })
-        driver = webdriver.Chrome(executable_path=CHROME_DRIVER_PATH,
-                                  desired_capabilities=desired_capabilities)
+        # TODO: check for more options
+        options.add_argument('--headless')
+        options.add_argument('--no-sandbox')
+        chromedriver_binary.add_chromedriver_to_path()
+        options.binary_location = chromedriver_binary.chromedriver_filename
+        # driver = webdriver.Chrome(desired_capabilities=desired_capabilities, options=options, executable_path=chromedriver_binary.chromedriver_filename)
+        driver = webdriver.Chrome(desired_capabilities=desired_capabilities, options=options)
         return driver
     except Exception as e:
         logger.error("Error creating web driver. {}".format(e))
@@ -205,7 +199,8 @@ def _extract_status_code_from_response(response):
 
 
 logger = _create_logger()
-_monitor("https://www.logz.io")
+# _monitor("https://www.logz.io")
 
-# def handler(event, context):
-#     _monitor("https//www.youtube.com")
+
+def lambda_handler(event, context):
+    _monitor("https://www.logz.io")
