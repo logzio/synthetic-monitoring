@@ -1,7 +1,6 @@
 import chromedriver_binary
 import datetime
 import json
-import logging
 import os
 import re
 import requests
@@ -13,11 +12,10 @@ from selenium.webdriver.support.ui import WebDriverWait
 FAILED_STATUS_CODE = -1
 SUCCESS = 1
 FAILURE = 0
-DEFAULT_LOG_LEVEL = "INFO"
 DEFAULT_DOM_COMPLETE = 5
-LOG_LEVELS = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 LOGZIO_LISTENER = os.getenv("LOGZIO_LISTENER", "listener.logz.io")
-LOGZIO_TOKEN = os.environ["LOGZIO_TOKEN"]
+LOGZIO_TOKEN = os.environ["LOGZIO_METRICS_TOKEN"]
+LOGZIO_LOGS_TOKEN = os.environ["LOGZIO_LOGS_TOKEN"]
 PROTOCOL = os.getenv("PROTOCOL", "https")
 
 
@@ -38,17 +36,6 @@ class dom_is_completed(object):
         return _get_status_ready(driver)
 
 
-def _create_logger():
-    try:
-        user_level = os.environ["LOGZIO_LOG_LEVEL"].upper()
-        level = user_level if user_level in LOG_LEVELS else DEFAULT_LOG_LEVEL
-    except KeyError:
-        level = DEFAULT_LOG_LEVEL
-    logging.basicConfig(format='%(asctime)s\t\t%(levelname)s\t[%(name)s]\t%(filename)s:%(lineno)d\t%(message)s',
-                        level=level)
-    return logging.getLogger(__name__)
-
-
 def _monitor(url):
     dom_to_complete_sec = _get_dom_complete_env()
     driver = _get_driver()
@@ -60,12 +47,13 @@ def _monitor(url):
             check_dom = dom_is_completed()
             is_dom_complete = wait.until(check_dom)
         except exceptions.TimeoutException:
-            logger.info("domComplete event didn't occur within the time limit")
+            _send_log("domComplete event didn't occur within the time limit")
+        except Exception as e:
+            _send_log("Error occurred while trying to load page: {}".format(e))
         finally:
             web_metrics = _get_page_metrics(driver, url, is_dom_complete)
             if web_metrics:
                 _send_metrics(web_metrics)
-                logger.debug("Metrics were sent from region: {}, url: {}".format(os.environ["region"], url))
             driver.quit()
 
 
@@ -76,23 +64,23 @@ def _get_network_data(driver):
         network_data = driver.execute_script(js_script)
         return network_data
     except Exception as e:
-        logger.error("Error occurred while getting page metrics. {}".format(e))
+        _send_log("Error occurred while getting page metrics. {}".format(e))
         return {}
 
 
 def _get_page_metrics(driver, url, is_dom_complete):
     try:
         js_script_timestamp = "return window.performance.timing.navigationStart"
-        timestamp = datetime.datetime.fromtimestamp(_ms_to_seconds(driver.execute_script(js_script_timestamp)), tz=datetime.timezone.utc)
-        timestamp_str = "{}Z".format(timestamp.strftime("%Y-%m-%dT%H:%M:s%S.%f")[:-3])
-        data = {"@timestamp": timestamp_str,
+        timestamp = datetime.datetime.fromtimestamp(_ms_to_seconds(driver.execute_script(js_script_timestamp)),
+                                                    tz=datetime.timezone.utc)
+        data = {"@timestamp": _format_timestamp(timestamp),
                 "type": "synthetic-monitoring",
                 "metrics": _create_metrics(driver, is_dom_complete)}
-        dimensions = {"region": os.environ["region"], "url": url}
+        dimensions = {"region": os.environ["REGION"], "url": url}
         data["dimensions"] = dimensions
         return data
     except Exception as e:
-        logger.error("Error occurred while getting page metrics: {}".format(e))
+        _send_log("Error occurred while getting page metrics: {}".format(e))
         return {}
 
 
@@ -114,25 +102,18 @@ def _create_metrics(driver, is_dom_complete):
                 metrics["up"] = SUCCESS
             elif 400 <= status_code < 600:
                 metrics["up"] = FAILURE
+                _send_log("Page {} returned status code {} for region {}".format(driver.current_url, status_code, os.getenv("REGION")))
         return metrics
     except Exception as e:
-        logger.error("Error creating page's metrics. {}".format(e))
+        _send_log("Error creating page's metrics. {}".format(e))
         return {}
 
 
 def _send_metrics(metrics):
     try:
-        metrics_json = json.dumps(metrics)
-        logger.debug(metrics_json)
-        port = _get_port_by_protocol()
-        url = "{}://{}:{}/?token={}".format(PROTOCOL, LOGZIO_LISTENER, port, LOGZIO_TOKEN)
-        response = requests.post(url, data=metrics_json)
-        if response.ok:
-            logger.debug("Metrics sent successfully.")
-        else:
-            logger.error("Couldn't send metrics. Response code from logzio: {}. {}".format(response.status_code, response.text))
+        _send_data(json.dumps(metrics))
     except Exception as e:
-        logger.error("Error occurred while trying to send metrics. {}".format(e))
+        _send_log("Error occurred while trying to send metrics. {}".format(e))
 
 
 def _get_port_by_protocol():
@@ -149,11 +130,11 @@ def _ms_to_seconds(ms):
 def _get_dom_complete_env():
     try:
         if "DOM_COMPLETE" in os.environ:
-            return int(os.getenv("DOM_COMPLETE"))
+            return float(os.getenv("DOM_COMPLETE"))
         else:
             return DEFAULT_DOM_COMPLETE
     except ValueError:
-        logger.error("Error in DOM_COMPLETE value. Reverting to default DOM_COMPLETE value")
+        _send_log("Error in DOM_COMPLETE value. Reverting to default DOM_COMPLETE value")
         return DEFAULT_DOM_COMPLETE
 
 
@@ -165,13 +146,13 @@ def _get_driver():
         # TODO: check for more options
         options.add_argument('--headless')
         options.add_argument('--no-sandbox')
-        chromedriver_binary.add_chromedriver_to_path()
-        options.binary_location = chromedriver_binary.chromedriver_filename
+        # chromedriver_binary.add_chromedriver_to_path()
+        # options.binary_location = chromedriver_binary.chromedriver_filename
         # driver = webdriver.Chrome(desired_capabilities=desired_capabilities, options=options, executable_path=chromedriver_binary.chromedriver_filename)
         driver = webdriver.Chrome(desired_capabilities=desired_capabilities, options=options)
         return driver
     except Exception as e:
-        logger.error("Error creating web driver. {}".format(e))
+        _send_log("Error creating web driver. {}".format(e))
         return {}
 
 
@@ -182,7 +163,7 @@ def _get_page_status_code(driver):
         status_code = _extract_status_code_from_response(response)
         return status_code
     except Exception as e:
-        logger.error("Error occurred while getting performance logs: {}".format(e))
+        _send_log("Error occurred while getting performance logs: {}".format(e))
         return {}
 
 
@@ -194,13 +175,36 @@ def _extract_status_code_from_response(response):
         status_code = status_code_line[status_code_index[0]:status_code_index[1]]
         return int(status_code)
     except Exception as e:
-        logger.error("Error getting page's status code. {}".format(e))
+        _send_log("Error getting page's status code. {}".format(e))
         return {}
 
 
-logger = _create_logger()
-# _monitor("https://www.logz.io")
+def _send_log(message):
+    timestamp = _format_timestamp(datetime.datetime.now(tz=datetime.timezone.utc))
+    log = {"@timestamp": timestamp, "message": message, "type": "synthetic-monitoring"}
+    _send_data(json.dumps(log), is_metrics=False)
 
 
-def lambda_handler(event, context):
-    _monitor("https://www.logz.io")
+def _send_data(data, is_metrics=True):
+    try:
+        port = _get_port_by_protocol()
+        token = LOGZIO_TOKEN if is_metrics else LOGZIO_LOGS_TOKEN
+        url = "{}://{}:{}/?token={}".format(PROTOCOL, LOGZIO_LISTENER, port, token)
+        response = requests.post(url, data=data)
+        if not response.ok:
+            # TODO
+            pass
+    except Exception as e:
+        # TODO
+        pass
+
+
+def _format_timestamp(timestamp):
+    return "{}Z".format(timestamp.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3])
+
+
+_monitor("http://www.logz.io")
+
+
+# def lambda_handler(event, context):
+#     _monitor("https://www.logz.io")
