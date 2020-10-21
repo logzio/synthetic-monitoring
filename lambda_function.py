@@ -35,6 +35,47 @@ class dom_is_completed(object):
         return _get_status_ready(driver)
 
 
+def _get_country_code():
+    region = os.environ["AWS_REGION"]
+    country_codes_by_region = {
+        # US regions
+        "us-east-1" : "US",
+        "us-east-2" : "US",
+        "us-west-1" : "US",
+        "us-west-2" : "US",
+        # Africa regions
+        "af-south-1":"ZA",
+        # Asia regions
+        "ap-east-1" : "HK",
+        "ap-south-1" : "IN",
+        "ap-northeast-2" : "KR",
+        "ap-southeast-1" : "SG",
+        "ap-southeast-2" : "AU",
+        "ap-northeast-1" : "JP",
+        # EU regions 
+        "eu-central-1" : "DE",
+        "eu-west-1" : "IE",
+        "eu-west-2" : "GB",
+        "eu-south-1" : "IT",
+        "eu-west-3" : "FR",
+        "eu-north-1" : "SE",
+        # Middle east regions
+        "me-south-1" : "BH",
+        # South america regions
+        "sa-east-1" : "BR",
+        # Canada regions 
+        "ca-central-1": "CA"
+    }
+    try:
+        country_code = country_codes_by_region[region]
+        return country_code
+    except Exception as e:
+        _send_log("{} region is not supported").format(region)
+        pass
+    
+    
+    
+    
 def _monitor(url):
     dom_to_complete_sec = _get_dom_complete_env()
     driver = _get_driver()
@@ -75,7 +116,7 @@ def _get_page_metrics(driver, url, is_dom_complete):
         data = {"@timestamp": _format_timestamp(timestamp),
                 "type": "synthetic-monitoring",
                 "metrics": _create_metrics(driver, is_dom_complete)}
-        dimensions = {"region": os.environ["REGION"], "url": url}
+        dimensions = {"country": _get_country_code(),"region": os.environ["AWS_REGION"], "url": url}
         data["dimensions"] = dimensions
         return data
     except Exception as e:
@@ -101,7 +142,7 @@ def _create_metrics(driver, is_dom_complete):
                 metrics["up"] = SUCCESS
             elif 400 <= status_code < 600:
                 metrics["up"] = FAILURE
-                _send_log("Page {} returned status code {} for region {}".format(driver.current_url, status_code, os.getenv("REGION")))
+                _send_log("Page {} returned status code {} for region {}".format(driver.current_url, status_code, os.getenv("AWS_REGION")))
         return metrics
     except Exception as e:
         _send_log("Error creating page's metrics. {}".format(e))
@@ -116,7 +157,7 @@ def _send_metrics(metrics):
 
 
 def _get_port_by_protocol():
-    if PROTOCOL is "https":
+    if PROTOCOL == "https":
         return "8071"
     else:
         return "8070"
@@ -193,13 +234,23 @@ def _get_driver():
         _send_log("Error creating web driver. {}".format(e))
         return {}
 
+def _get_status(logs):
+    for log in logs:
+        if log['message']:
+            d = json.loads(log['message'])
+            try:
+                content_type = 'text/html' in d['message']['params']['response']['headers']['content-type']
+                response_received = d['message']['method'] == 'Network.responseReceived'
+                if content_type and response_received:
+                    return d['message']['params']['response']['status']
+            except:
+                pass
 
 def _get_page_status_code(driver):
     try:
         performance_logs = driver.get_log('performance')
-        response = next(json.loads(log["message"]) for log in performance_logs if "headersText" in log["message"])
-        status_code = _extract_status_code_from_response(response)
-        return status_code
+        status_code = _get_status(performance_logs)
+        return int(status_code)
     except Exception as e:
         _send_log("Error occurred while getting performance logs: {}".format(e))
         return {}
