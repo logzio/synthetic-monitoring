@@ -17,12 +17,10 @@ LOGZIO_TOKEN = os.environ["LOGZIO_METRICS_TOKEN"]
 LOGZIO_LOGS_TOKEN = os.environ["LOGZIO_LOGS_TOKEN"]
 PROTOCOL = os.getenv("PROTOCOL", "https")
 
-
 def _get_status_ready(driver):
     js_script = "return document.readyState"
     ready_response = driver.execute_script(js_script)
     return ready_response == 'complete'
-
 
 class dom_is_completed(object):
     """An expectation for checking that the DOM elements load is complete.
@@ -39,31 +37,31 @@ def _get_country_code():
     region = os.environ["AWS_REGION"]
     country_codes_by_region = {
         # US regions
-        "us-east-1" : "US",
-        "us-east-2" : "US",
-        "us-west-1" : "US",
-        "us-west-2" : "US",
+        "us-east-1": "US",
+        "us-east-2": "US",
+        "us-west-1": "US",
+        "us-west-2": "US",
         # Africa regions
-        "af-south-1":"ZA",
+        "af-south-1": "ZA",
         # Asia regions
-        "ap-east-1" : "HK",
-        "ap-south-1" : "IN",
-        "ap-northeast-2" : "KR",
-        "ap-southeast-1" : "SG",
-        "ap-southeast-2" : "AU",
-        "ap-northeast-1" : "JP",
-        # EU regions 
-        "eu-central-1" : "DE",
-        "eu-west-1" : "IE",
-        "eu-west-2" : "GB",
-        "eu-south-1" : "IT",
-        "eu-west-3" : "FR",
-        "eu-north-1" : "SE",
+        "ap-east-1": "HK",
+        "ap-south-1": "IN",
+        "ap-northeast-2": "KR",
+        "ap-southeast-1": "SG",
+        "ap-southeast-2": "AU",
+        "ap-northeast-1": "JP",
+        # EU regions
+        "eu-central-1": "DE",
+        "eu-west-1": "IE",
+        "eu-west-2": "GB",
+        "eu-south-1": "IT",
+        "eu-west-3": "FR",
+        "eu-north-1": "SE",
         # Middle east regions
-        "me-south-1" : "BH",
+        "me-south-1": "BH",
         # South america regions
-        "sa-east-1" : "BR",
-        # Canada regions 
+        "se-east-1": "BR",
+        # Canada regions
         "ca-central-1": "CA"
     }
     try:
@@ -72,10 +70,7 @@ def _get_country_code():
     except Exception as e:
         _send_log("{} region is not supported").format(region)
         pass
-    
-    
-    
-    
+
 def _monitor(url):
     dom_to_complete_sec = _get_dom_complete_env()
     driver = _get_driver()
@@ -91,22 +86,62 @@ def _monitor(url):
         except Exception as e:
             _send_log("Error occurred while trying to load page: {}".format(e))
         finally:
+            all_metrics = []
+            # Whole DOM metric
             web_metrics = _get_page_metrics(driver, url, is_dom_complete)
-            if web_metrics:
-                _send_metrics(web_metrics)
+            all_metrics.append(web_metrics)
+            # Resource metrics
+            resources = driver.execute_script("return window.performance.getEntriesByType('resource')")
+            for r in resources:
+                resource_metric = _get_resource_metrics(driver, url, r)
+                if resource_metric:
+                    all_metrics.append(resource_metric)
+
+            if all_metrics:
+                for metric in all_metrics:
+                    _send_metrics(metric)
+                _send_log("Sending {} metrics documents".format(len(all_metrics)))
             driver.quit()
 
-
-def _get_network_data(driver):
+def _get_resource_metrics(driver, url, resource):
     try:
-        js_script = "var performance = window.performance || window.mozPerformance || window.msPerformance || " \
-                    "window.webkitPerformance || {}; var network = performance.getEntries() || {}; return network; "
-        network_data = driver.execute_script(js_script)
-        return network_data
+        js_script_timestamp = "return window.performance.timing.navigationStart"
+        timestamp = datetime.datetime.fromtimestamp(_ms_to_seconds(driver.execute_script(js_script_timestamp)),
+                                                    tz=datetime.timezone.utc)
+        data = {"@timestamp": _format_timestamp(timestamp),
+                "type": "synthetic-monitoring",
+                "metrics": _create_resource_metrics(resource)}
+        dimensions = {"country": _get_country_code(), "region": os.environ["AWS_REGION"], "url": url,  
+                      "resource_name": resource["name"], "resource_type": resource['initiatorType']}
+        data["dimensions"] = dimensions
+        return data
     except Exception as e:
-        _send_log("Error occurred while getting page metrics. {}".format(e))
+        _send_log("Error occurred while getting resource metrics: {}".format(e))
         return {}
 
+def _create_resource_metrics(resource):
+    try:
+        metrics = {}
+        fetch_start = resource['fetchStart']
+        response_end = resource['responseEnd']
+        metrics["time_to_complete.ms"] = response_end - fetch_start
+        return metrics
+    except Exception as e:
+        _send_log("Error creating page's metrics. {}".format(e))
+        return {}
+
+def _get_resource_response_logs(driver):
+    try:
+        response_logs = []
+        performance_logs = driver.get_log('performance')
+        for log in performance_logs:
+            message = json.loads(log['message'])
+            if message['message']['method'] == 'Network.responseReceived':
+                response_logs.append(message['message'])
+        return response_logs
+    except Exception as e:
+        _send_log("Error occurred while getting resource logs: {}".format(e))
+        return {}
 
 def _get_page_metrics(driver, url, is_dom_complete):
     try:
@@ -116,13 +151,12 @@ def _get_page_metrics(driver, url, is_dom_complete):
         data = {"@timestamp": _format_timestamp(timestamp),
                 "type": "synthetic-monitoring",
                 "metrics": _create_metrics(driver, is_dom_complete)}
-        dimensions = {"country": _get_country_code(),"region": os.environ["AWS_REGION"], "url": url}
+        dimensions = {"country": _get_country_code(), "region": os.environ["AWS_REGION"], "url": url}
         data["dimensions"] = dimensions
         return data
     except Exception as e:
         _send_log("Error occurred while getting page metrics: {}".format(e))
         return {}
-
 
 def _create_metrics(driver, is_dom_complete):
     try:
@@ -142,12 +176,12 @@ def _create_metrics(driver, is_dom_complete):
                 metrics["up"] = SUCCESS
             elif 400 <= status_code < 600:
                 metrics["up"] = FAILURE
-                _send_log("Page {} returned status code {} for region {}".format(driver.current_url, status_code, os.getenv("AWS_REGION")))
+                _send_log("Page {} returned status code {} for region {}".format(driver.current_url, status_code,
+                                                                                 os.getenv("AWS_REGION")))
         return metrics
     except Exception as e:
         _send_log("Error creating page's metrics. {}".format(e))
         return {}
-
 
 def _send_metrics(metrics):
     try:
@@ -155,17 +189,14 @@ def _send_metrics(metrics):
     except Exception as e:
         _send_log("Error occurred while trying to send metrics. {}".format(e))
 
-
 def _get_port_by_protocol():
     if PROTOCOL == "https":
         return "8071"
     else:
         return "8070"
 
-
 def _ms_to_seconds(ms):
     return ms / 1000
-
 
 def _get_dom_complete_env():
     try:
@@ -176,7 +207,6 @@ def _get_dom_complete_env():
     except ValueError:
         _send_log("Error in DOM_COMPLETE value. Reverting to default DOM_COMPLETE value")
         return DEFAULT_DOM_COMPLETE
-
 
 def _get_driver():
     try:
@@ -224,7 +254,6 @@ def _get_driver():
             '--use-mock-keychain',
             '--single-process',
             '--headless']
-
         for argument in lambda_options:
             options.add_argument(argument)
         options.binary_location = "/opt/bin/chromium"
@@ -255,24 +284,10 @@ def _get_page_status_code(driver):
         _send_log("Error occurred while getting performance logs: {}".format(e))
         return {}
 
-
-def _extract_status_code_from_response(response):
-    try:
-        status_code_line = response["message"]["params"]["headersText"].split("\r\n")[0]
-        line_regex = r"HTTP/1.1\s(\d{3})\s.*"
-        status_code_index = re.search(line_regex, status_code_line).regs[1]
-        status_code = status_code_line[status_code_index[0]:status_code_index[1]]
-        return int(status_code)
-    except Exception as e:
-        _send_log("Error getting page's status code. {}".format(e))
-        return {}
-
-
 def _send_log(message):
     timestamp = _format_timestamp(datetime.datetime.now(tz=datetime.timezone.utc))
-    log = {"@timestamp": timestamp, "message": message, "type": "synthetic-monitoring"}
+    log = {"@timestamp": timestamp, "message": message, "type": "synthetic-monitoring", "lambda_function":os.environ["AWS_LAMBDA_FUNCTION_NAME"], "region":os.environ["AWS_REGION"], "url":os.environ["URL"]}
     _send_data(json.dumps(log), is_metrics=False)
-
 
 def _send_data(data, is_metrics=True):
     try:
@@ -287,10 +302,8 @@ def _send_data(data, is_metrics=True):
         # TODO
         pass
 
-
 def _format_timestamp(timestamp):
     return "{}Z".format(timestamp.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3])
-
 
 def _get_url():
     try:
@@ -298,7 +311,6 @@ def _get_url():
     except KeyError:
         _send_log("Error - no URL entered")
         return {}
-
 
 def lambda_handler(event, context):
     url = _get_url()
