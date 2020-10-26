@@ -60,7 +60,7 @@ def _get_country_code():
         # Middle east regions
         "me-south-1": "BH",
         # South america regions
-        "se-east-1": "BR",
+        "sa-east-1": "BR",
         # Canada regions
         "ca-central-1": "CA"
     }
