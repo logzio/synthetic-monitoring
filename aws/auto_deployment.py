@@ -53,42 +53,13 @@ def _format_timestamp(timestamp):
     return "{}Z".format(timestamp.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3])
 
 
-def _get_template_url_by_region(region):
-    templates_by_region = {
-        # US regions
-        "us-east-1": "https://sm-template.s3.amazonaws.com/sm-stack-us-east-1.yaml",
-        "us-west-1": "https://sm-template.s3.amazonaws.com/sm-stack-us-west-2.yaml",
-        # Asia regions
-        "ap-south-1": "https://sm-template.s3.amazonaws.com/sm-stack-ap-south-1.yaml",
-        "ap-northeast-2": "https://sm-template.s3.amazonaws.com/sm-satck-ap-northeast-2.yaml",
-        "ap-southeast-1": "https://sm-template.s3.amazonaws.com/sm-stack-ap-southeast-1.yaml",
-        "ap-southeast-2": "https://sm-template.s3.amazonaws.com/sm-stack-ap-southeast-2.yaml",
-        "ap-northeast-1": "https://sm-template.s3.amazonaws.com/sm-stack-ap-northeast-1.yaml",
-        # EU regions
-        "eu-central-1": "https://sm-template.s3.amazonaws.com/sm-stack-eu-central-1.yaml",
-        "eu-west-1": "https://sm-template.s3.amazonaws.com/sm-stack-eu-west-1.yaml",
-        "eu-west-2": "https://sm-template.s3.amazonaws.com/sm-stack-eu-west-2.yaml",
-        "eu-west-3": "https://sm-template.s3.amazonaws.com/sm-stack-eu-west-3.yaml",
-        "eu-north-1": "https://sm-template.s3.amazonaws.com/sm-stack-eu-north-1.yaml",
-        # South america regions
-        "sa-east-1": "https://sm-template.s3.amazonaws.com/sm-stack-sa-east-1.yaml",
-        # Canada regions
-        "ca-central-1": "https://sm-template.s3.amazonaws.com/sm-stack-ca-central-1.yaml"
-    }
-    try:
-        return templates_by_region[region]
-    except Exception as e:
-        _send_log("{} region is not supported".format(region))
-        pass
-
-
 def _deploy_stack(region):
     try:
         _send_log("Starting to deploy cloudformation stack to {} region".format(region))
         client = boto3.client('cloudformation', region_name=region)
         response = client.create_stack(
             StackName='logzio-sm-{}-{}'.format(region, URL_LABEL),
-            TemplateURL=_get_template_url_by_region(region),
+            TemplateURL='https://sm-template.s3.amazonaws.com/sm-stack-{}.yaml'.format(region),
             Parameters=[
                 {
                     'ParameterKey': 'logzioURL',
