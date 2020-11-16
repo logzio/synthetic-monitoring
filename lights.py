@@ -26,6 +26,7 @@ class LightsMonitor(object):
     function_name: str
     protocol: str
     max_dom_complete: float  # seconds
+    system: str
 
     def __post_init__(self):
         if self.protocol is None:
@@ -133,7 +134,7 @@ class LightsMonitor(object):
                 '--headless']
             for argument in lambda_options:
                 options.add_argument(argument)
-            options.binary_location = "/opt/bin/chromium"
+            options.binary_location = self.__get_chrome_binary_by_system()
             driver = webdriver.Chrome(desired_capabilities=desired_capabilities, options=options)
             return driver
         except Exception as e:
@@ -294,6 +295,10 @@ class LightsMonitor(object):
                 except:
                     # TODO
                     pass
+
+    def __get_chrome_binary_by_system(self):
+        if self.system == "aws":
+            return "/opt/bin/chromium"
 
     def __format_timestamp(self, timestamp):
         return "{}Z".format(timestamp.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3])

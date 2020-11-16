@@ -27,6 +27,7 @@ def lambda_handler(event, context):
                                    region=region,
                                    function_name=function_name,
                                    max_dom_complete=max_dom_complete,
-                                   protocol=protocol)
+                                   protocol=protocol,
+                                   system="aws")
 
     lights_monitor.monitor()
