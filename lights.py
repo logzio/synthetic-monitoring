@@ -29,6 +29,7 @@ class LightsMonitor(object):
     system: str
 
     def __post_init__(self):
+
         if self.protocol is None:
             self.protocol = "https"
 
@@ -36,9 +37,9 @@ class LightsMonitor(object):
             return
 
         if self.logzio_region_code == "" or self.logzio_region_code == "us":
-            self.logzio_listener = "listener.logz.io".format(self.protocol)
+            self.logzio_listener = "{}://listener.logz.io".format(self.protocol)
         else:
-            self.logzio_listener = "listener-{}.logz.io".format(self.protocol, self.logzio_region_code)
+            self.logzio_listener = "{}://listener-{}.logz.io".format(self.protocol, self.logzio_region_code)
 
     class dom_is_completed(object):
         """
@@ -158,7 +159,7 @@ class LightsMonitor(object):
         try:
             port = self.__get_port_by_protocol()
             token = self.metrics_token if is_metrics else self.logs_token
-            url = "{}://{}:{}/?token={}".format(self.protocol, self.logzio_listener, port, token)
+            url = "{}:{}/?token={}".format(self.logzio_listener, port, token)
             response = requests.post(url, data=data)
             if not response.ok:
                 # TODO
