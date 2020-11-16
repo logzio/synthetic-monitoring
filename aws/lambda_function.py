@@ -1,7 +1,7 @@
 import os
 import sys
 sys.path.append(".")
-from lights import LightsMonitor
+from lambda_function.lights import LightsMonitor
 
 
 def lambda_handler(event, context):

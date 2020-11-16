@@ -4,9 +4,11 @@ import boto3
 import requests
 import datetime
 
-LOGZIO_LISTENER = os.getenv("LOGZIO_LISTENER", "listener.logz.io")
+LOGZIO_LISTENER = os.getenv("LOGZIO_CUSTOM_LISTENER", "listener.logz.io")
 LOGZIO_METRICS_TOKEN = os.environ["LOGZIO_METRICS_TOKEN"]
 LOGZIO_LOGS_TOKEN = os.environ["LOGZIO_LOGS_TOKEN"]
+LOGZIO_REGION = os.environ["LOGZIO_REGION"]
+SCRAPE_INTERVAL = os.environ["SCRAPE_INTERVAL"]
 REGIONS = list(os.environ["REGIONS"].replace(' ', '').split(","))
 PROTOCOL = os.getenv("PROTOCOL", "https")
 URL = os.environ["URL"]
@@ -64,6 +66,16 @@ def _deploy_stack(region):
                 {
                     'ParameterKey': 'logzioURL',
                     'ParameterValue': LOGZIO_LISTENER,
+                    'UsePreviousValue': False,
+                },
+                {
+                    'ParameterKey': 'scrapeInterval',
+                    'ParameterValue': SCRAPE_INTERVAL,
+                    'UsePreviousValue': False,
+                },
+                {
+                    'ParameterKey': 'logzioRegion',
+                    'ParameterValue': LOGZIO_REGION,
                     'UsePreviousValue': False,
                 },
                 {
