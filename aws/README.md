@@ -17,11 +17,11 @@ To start just press the button and follow the instructions:
 You'll be taken to AWS, where you'll configure the resources to be deployed.
 Keep the defaults and click Next on the following screen
 
-![Customized template](https://dytvr9ot2sszz.cloudfront.net/logz-docs/lights/LightS-create-stack.png)
+![Customized template](https://dytvr9ot2sszz.cloudfront.net/logz-docs/lights/lights-create-stack.png)
 
 ##### Specify stack details
 
-![Customized template](https://dytvr9ot2sszz.cloudfront.net/logz-docs/lights/LightS-stack-details.png)
+![Customized template](https://dytvr9ot2sszz.cloudfront.net/logz-docs/lights/lights-params.png)
 
 | Parameter | Description |
 |---|---|
@@ -39,7 +39,7 @@ and click Next
 ##### Configure stack
 
 On the following page fill Tags to easily identified your Lambda function and press Next
-![Customized template](https://dytvr9ot2sszz.cloudfront.net/logz-docs/lights/LightS-configure-stack.png)
+![Customized template](https://dytvr9ot2sszz.cloudfront.net/logz-docs/lights/lights-stack-options.png)
 
 
 ###### Confirm IAM Role permissions and create the stack
