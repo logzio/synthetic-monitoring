@@ -25,6 +25,7 @@ Keep the defaults and click Next on the following screen
 
 | Parameter | Description |
 |---|---|
+| Stack name | Unique name for the cloudformation stack |
 | logzioLogsToken | Token for shipping logs to your Logz.io account. |
 | logzioMetricsToken | Token for shipping metrics to your Logz.io account. |
 | logzioURL | (optional) Set a custom URL to ship metrics & logs to (e.g., http://localhost:9200). This overrides the region_code configurationfor further information. |
@@ -50,6 +51,25 @@ AWS will automatically show a notice requesting that you acknowledge that AWS Cl
 
 Check the box to acknowledge this option and click **Create stack**.
 
+This Deploymet will create the following resources in your AWS account:
+#### Global (us-east-1):
+| Logical ID | Resource type |
+|---|---|
+| LogzioAutoDeploymentFunction | AWS::Lambda::Function |
+| LogzioSyntheticMonitoringBinLayer | AWS::Lambda::LayerVersion |
+| LogzioSyntheticMonitoringPythonLayer | AWS::Lambda::LayerVersion |
+| LogzioInvoke | AWS::CloudFormation::CustomResource |
+| LogzioLambdaExecutionRole | AWS::IAM::Role |
+#### In every region specified in `regions` parameter:
+| Logical ID | Resource type |
+|---|---|
+| LogzioSyntheticMonitoringFunction | AWS::Lambda::Function |
+| LogzioSyntheticMonitoringBinLayer | AWS::Lambda::LayerVersion |
+| LogzioSyntheticMonitoringPythonLayer | AWS::Lambda::LayerVersion |
+| LogzioPermissionForEventsToInvokeLambda | AWS::Lambda::Permission |
+| LogzioLambdaExecutionRole | AWS::IAM::Role |
+| LogzioScheduledRule | AWS::Events::Rule |
+
 ##### Open your Synthetic Monitoring dashboard in Logz.io
 
 Give your metrics some time to get from your system to ours, and then open [Logz.io Metrics](https://app.logz.io/#/dashboard/grafana/).
@@ -57,3 +77,8 @@ Give your metrics some time to get from your system to ours, and then open [Logz
 Your metrics should appear in the preconfigured dashboard in your Metrics account. Use the Synthetic Monitoring Dashboard to monitor your website performance and availability via Logz.io.
 
 </div>
+
+
+
+
+
