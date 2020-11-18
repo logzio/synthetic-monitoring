@@ -24,22 +24,20 @@ class LightsMonitor(object):
     logzio_region_code: str
     logzio_listener: str
     function_name: str
-    protocol: str
     max_dom_complete: float  # seconds
     system: str
 
     def __post_init__(self):
-
-        if self.protocol is None:
-            self.protocol = "https"
+        if self.max_dom_complete is None or self.max_dom_complete == 0:
+            self.max_dom_complete = 5.0
 
         if self.logzio_listener != "":
             return
 
         if self.logzio_region_code == "" or self.logzio_region_code == "us":
-            self.logzio_listener = "{}://listener.logz.io".format(self.protocol)
+            self.logzio_listener = "https://listener.logz.io:8071"
         else:
-            self.logzio_listener = "{}://listener-{}.logz.io".format(self.protocol, self.logzio_region_code)
+            self.logzio_listener = "https://listener-{}.logz.io:8071".format(self.logzio_region_code)
 
     class dom_is_completed(object):
         """
@@ -157,9 +155,8 @@ class LightsMonitor(object):
 
     def __send_data(self, data, is_metrics=True):
         try:
-            port = self.__get_port_by_protocol()
             token = self.metrics_token if is_metrics else self.logs_token
-            url = "{}:{}/?token={}".format(self.logzio_listener, port, token)
+            url = "{}/?token={}".format(self.logzio_listener, token)
             response = requests.post(url, data=data)
             if not response.ok:
                 # TODO
@@ -303,12 +300,6 @@ class LightsMonitor(object):
 
     def __format_timestamp(self, timestamp):
         return "{}Z".format(timestamp.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3])
-
-    def __get_port_by_protocol(self):
-        if self.protocol == "https":
-            return "8071"
-        else:
-            return "8070"
 
     def __ms_to_seconds(self, ms):
         return ms / 1000

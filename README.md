@@ -20,3 +20,6 @@ LightS uses a simple script based on Python and Selenium. You can easily deploy 
 
 ### Change log:
 * **0.0.1** - Initial release
+
+#### Acknowledgments
+Special thanks for [@vittorio-nardone](https://github.com/vittorio-nardone) for his excellent [repo](https://github.com/vittorio-nardone/selenium-chromium-lambda).
