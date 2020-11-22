@@ -100,6 +100,7 @@ def validate_max_dom_complete(max_dom_complete, default_max_dom):
     return max_dom_complete
 
 
+# validate_aws_scrape_interval validates the scrape interval for the lambda functions
 def validate_aws_scrape_interval(scrape_interval):
     if scrape_interval is None or scrape_interval == "":
         raise ValueError("Must enter value scrape interval")
