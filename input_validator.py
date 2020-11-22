@@ -20,14 +20,6 @@ def is_valid_logzio_token(token):
     raise ValueError("Invalid token: {}".format(token))
 
 
-# has_region_or_listener checks that either a custom listener or a logzio region code were inserted
-def has_region_or_listener(logzio_listener, logzio_region_code):
-    if (logzio_region_code is not None and logzio_region_code != "") or (
-            logzio_listener is not None and logzio_listener != ""):
-        return True
-    raise ValueError("Must contain logzio region code or a custom listener")
-
-
 # is_valid_logzio_region_code checks that a the region code is a valid logzio region code.
 # an empty string ("") is also acceptable
 def is_valid_logzio_region_code(logzio_region_code):
@@ -75,29 +67,6 @@ def is_valid_max_dom_complete(max_dom_complete):
     elif max_dom_complete <= 0:
         raise ValueError("Invalid max_dom_complete value. Should be non-zero, positive number")
     return True
-
-
-# validate_max_dom_complete validates the variable max_dom_complete-
-# if max_dom_complete is a float or can be parsed to float - it will return its float representation
-# a None value or an empty string ("") will revert to the default that was given to the function
-def validate_max_dom_complete(max_dom_complete, default_max_dom):
-    invalid_val_msg = "Invalid max_dom_complete value. Should be non-zero, positive number"
-    try:
-        is_valid_max_dom_complete(max_dom_complete)
-    except TypeError:
-        try:
-            if max_dom_complete is None or max_dom_complete == "":
-                return default_max_dom
-            else:
-                float_parse = float(max_dom_complete)
-                if float_parse <= 0:
-                    raise ValueError(invalid_val_msg)
-        except ValueError as e:
-            if e.args[0] == invalid_val_msg:
-                raise e
-            else:
-                raise TypeError("Invalid type for max_fom_complete. Should be empty or string")
-    return max_dom_complete
 
 
 # validate_aws_scrape_interval validates the scrape interval for the lambda functions

@@ -21,7 +21,7 @@ class LightsMonitor(object):
     SUCCESS = 1
     FAILURE = 0
     TOKEN_LENGHT = 32
-    DEFAULT_MAX_DOM_COMPLETE = 5.0
+    MAX_DOM_COMPLETE = 5.0
 
     url: str
     metrics_token: str
@@ -30,7 +30,6 @@ class LightsMonitor(object):
     logzio_region_code: str
     logzio_listener: str
     function_name: str
-    max_dom_complete: float  # seconds
     system: str
 
     # __post_init__ validates the user's input and sets up logz.io listener
@@ -69,7 +68,7 @@ class LightsMonitor(object):
             is_dom_complete = False
             try:
                 driver.get(self.url)
-                wait = WebDriverWait(driver, self.max_dom_complete)
+                wait = WebDriverWait(driver, self.MAX_DOM_COMPLETE)
                 check_dom = self.dom_is_completed()
                 is_dom_complete = wait.until(check_dom)
             except exceptions.TimeoutException:
@@ -96,7 +95,6 @@ class LightsMonitor(object):
 
     # __validate_input validates the user input with the input_validator module
     def __validate_input(self):
-        input_validator.has_region_or_listener(self.logzio_listener, self.logzio_region_code)
         input_validator.is_valid_url(self.url)
         input_validator.is_valid_logzio_token(self.logs_token)
         input_validator.is_valid_logzio_token(self.metrics_token)
@@ -104,7 +102,6 @@ class LightsMonitor(object):
         input_validator.is_supported_system(self.system)
         input_validator.is_valid_system_region(self.system, self.region)
         input_validator.is_valid_function_name(self.function_name)
-        self.max_dom_complete = input_validator.validate_max_dom_complete(self.max_dom_complete, self.DEFAULT_MAX_DOM_COMPLETE)
         return True
 
     # __get_driver sets up the headless chrome web driver

@@ -12,11 +12,6 @@ def lambda_handler(event, context):
     logzio_custom_listener = os.getenv("LOGZIO_CUSTOM_LISTENER", "")
     region = os.getenv("AWS_REGION")
     function_name = os.getenv("AWS_LAMBDA_FUNCTION_NAME")
-    max_dom_complete_str = os.getenv("DOM_COMPLETE", "")
-
-    max_dom_complete = 5.0
-    if max_dom_complete_str != "":
-        max_dom_complete = float(max_dom_complete_str)
 
     lights_monitor = LightsMonitor(url=url,
                                    logs_token=logs_token,
@@ -25,7 +20,6 @@ def lambda_handler(event, context):
                                    logzio_listener=logzio_custom_listener,
                                    region=region,
                                    function_name=function_name,
-                                   max_dom_complete=max_dom_complete,
                                    system="aws")
 
     lights_monitor.monitor()
