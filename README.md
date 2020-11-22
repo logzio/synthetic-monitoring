@@ -1,7 +1,7 @@
 # LightS
 
 LightS is a lightweight web monitoring solution to check availability and load performance of your web site. <br>
-LightS uses a simple script based on Python and Selenium. You can easily deploy it to your account on the supported cloud platforms. <br>
+LightS uses a simple script based on Python 3.7 and Selenium. You can easily deploy it to your account on the supported cloud platforms. <br>
 
 
 ## Supported platforms:
