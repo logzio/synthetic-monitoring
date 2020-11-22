@@ -6,6 +6,10 @@ from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 from selenium.common import exceptions
 from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
+import sys
+sys.path.append(".")
+import input_validator
+from sys_region_adapter import get_country_code_by_region_and_system
 
 
 @dataclass()
@@ -16,6 +20,8 @@ class LightsMonitor(object):
     # class constants:
     SUCCESS = 1
     FAILURE = 0
+    TOKEN_LENGHT = 32
+    DEFAULT_MAX_DOM_COMPLETE = 5.0
 
     url: str
     metrics_token: str
@@ -24,22 +30,21 @@ class LightsMonitor(object):
     logzio_region_code: str
     logzio_listener: str
     function_name: str
-    protocol: str
     max_dom_complete: float  # seconds
     system: str
 
+    # __post_init__ validates the user's input and sets up logz.io listener
     def __post_init__(self):
-
-        if self.protocol is None:
-            self.protocol = "https"
+        if not self.__validate_input():
+            return
 
         if self.logzio_listener != "":
             return
 
         if self.logzio_region_code == "" or self.logzio_region_code == "us":
-            self.logzio_listener = "{}://listener.logz.io".format(self.protocol)
+            self.logzio_listener = "https://listener.logz.io:8071"
         else:
-            self.logzio_listener = "{}://listener-{}.logz.io".format(self.protocol, self.logzio_region_code)
+            self.logzio_listener = "https://listener-{}.logz.io:8071".format(self.logzio_region_code)
 
     class dom_is_completed(object):
         """
@@ -57,6 +62,7 @@ class LightsMonitor(object):
             ready_response = driver.execute_script(js_script)
             return ready_response == 'complete'
 
+    # monitor sets up and runs the web driver, gets relevant metrics and sends them to logz.io
     def monitor(self):
         driver = self.__get_driver()
         if driver:
@@ -88,6 +94,20 @@ class LightsMonitor(object):
                     self.__send_log("Sending {} metrics documents".format(len(all_metrics)))
                 driver.quit()
 
+    # __validate_input validates the user input with the input_validator module
+    def __validate_input(self):
+        input_validator.has_region_or_listener(self.logzio_listener, self.logzio_region_code)
+        input_validator.is_valid_url(self.url)
+        input_validator.is_valid_logzio_token(self.logs_token)
+        input_validator.is_valid_logzio_token(self.metrics_token)
+        input_validator.is_valid_logzio_region_code(self.logzio_region_code)
+        input_validator.is_supported_system(self.system)
+        input_validator.is_valid_system_region(self.system, self.region)
+        input_validator.is_valid_function_name(self.function_name)
+        self.max_dom_complete = input_validator.validate_max_dom_complete(self.max_dom_complete, self.DEFAULT_MAX_DOM_COMPLETE)
+        return True
+
+    # __get_driver sets up the headless chrome web driver
     def __get_driver(self):
         try:
             desired_capabilities = DesiredCapabilities.CHROME
@@ -135,13 +155,15 @@ class LightsMonitor(object):
                 '--headless']
             for argument in lambda_options:
                 options.add_argument(argument)
-            options.binary_location = self.__get_chrome_binary_by_system()
+            if self.system != "none":
+                options.binary_location = self.__get_chrome_binary_by_system()
             driver = webdriver.Chrome(desired_capabilities=desired_capabilities, options=options)
             return driver
-        except Exception as e:
+        except exceptions.WebDriverException as e:
             self.__send_log("Error creating web driver. {}".format(e))
             return {}
 
+    # __send_log sends log to your logz.io account
     def __send_log(self, message):
         timestamp = self.__format_timestamp(datetime.datetime.now(tz=datetime.timezone.utc))
         log = {"@timestamp": timestamp, "message": message, "type": "synthetic-monitoring",
@@ -149,17 +171,19 @@ class LightsMonitor(object):
                "url": self.url}
         self.__send_data(json.dumps(log), is_metrics=False)
 
+    # __send_metrics sends metrics to your logz.io account
     def __send_metrics(self, metrics):
         try:
             self.__send_data(json.dumps(metrics))
         except Exception as e:
             self.__send_log("Error occurred while trying to send metrics. {}".format(e))
 
+    # __send_data sends over HTTPS either a log or a metric to your logz.io account,
+    # based on the token & is_metrics flag
     def __send_data(self, data, is_metrics=True):
         try:
-            port = self.__get_port_by_protocol()
             token = self.metrics_token if is_metrics else self.logs_token
-            url = "{}:{}/?token={}".format(self.logzio_listener, port, token)
+            url = "{}/?token={}".format(self.logzio_listener, token)
             response = requests.post(url, data=data)
             if not response.ok:
                 # TODO
@@ -168,6 +192,7 @@ class LightsMonitor(object):
             # TODO
             pass
 
+    # __get_page_metrics creates the web page metric
     def __get_page_metrics(self, driver, is_dom_complete):
         try:
             js_script_timestamp = "return window.performance.timing.navigationStart"
@@ -184,6 +209,7 @@ class LightsMonitor(object):
             self.__send_log("Error occurred while getting page metrics: {}".format(e))
             return {}
 
+    # __get_resource_metrics creates the resource metrics
     def __get_resource_metrics(self, driver, resource):
         try:
             js_script_timestamp = "return window.performance.timing.navigationStart"
@@ -201,6 +227,7 @@ class LightsMonitor(object):
             self.__send_log("Error occurred while getting resource metrics: {}".format(e))
             return {}
 
+    # __create_metrics gets data from the web driver's Timing API and calculates the metrics values for the page metric
     def __create_metrics(self, driver, is_dom_complete):
         try:
             metrics = {}
@@ -227,6 +254,7 @@ class LightsMonitor(object):
             self.__send_log("Error creating page's metrics. {}".format(e))
             return {}
 
+    # __create_resource_metrics calculates how much time it took for the resource to load
     def __create_resource_metrics(self, resource):
         try:
             metrics = {}
@@ -238,43 +266,16 @@ class LightsMonitor(object):
             self.__send_log("Error creating page's metrics. {}".format(e))
             return {}
 
+    # __get_country_code converts the system's region to the matching country code, to appear in the metrics
     def __get_country_code(self):
-        country_codes_by_region = {
-            # US regions
-            "us-east-1": "US",
-            "us-east-2": "US",
-            "us-west-1": "US",
-            "us-west-2": "US",
-            # Africa regions
-            "af-south-1": "ZA",
-            # Asia regions
-            "ap-east-1": "HK",
-            "ap-south-1": "IN",
-            "ap-northeast-2": "KR",
-            "ap-southeast-1": "SG",
-            "ap-southeast-2": "AU",
-            "ap-northeast-1": "JP",
-            # EU regions
-            "eu-central-1": "DE",
-            "eu-west-1": "IE",
-            "eu-west-2": "GB",
-            "eu-south-1": "IT",
-            "eu-west-3": "FR",
-            "eu-north-1": "SE",
-            # Middle east regions
-            "me-south-1": "BH",
-            # South america regions
-            "sa-east-1": "BR",
-            # Canada regions
-            "ca-central-1": "CA"
-        }
         try:
-            country_code = country_codes_by_region[self.region]
+            country_code = get_country_code_by_region_and_system(self.system, self.region)
             return country_code
-        except Exception as e:
+        except ValueError:
             self.__send_log("{} region is not supported").format(self.region)
             pass
 
+    # __get_page_status_code gets the page's status code (e.g. 200, 404, 500...)
     def __get_page_status_code(self, driver):
         try:
             performance_logs = driver.get_log('performance')
@@ -284,6 +285,7 @@ class LightsMonitor(object):
             self.__send_log("Error occurred while getting performance logs: {}".format(e))
             return {}
 
+    # __get_status extracts the page status code from its logs
     def __get_status(self, logs):
         for log in logs:
             if log['message']:
@@ -297,18 +299,15 @@ class LightsMonitor(object):
                     # TODO
                     pass
 
+    # __get_chrome_binary_by_system returns the path to the web driver binary, according to the system that's being used
     def __get_chrome_binary_by_system(self):
         if self.system == "aws":
             return "/opt/bin/chromium"
 
+    # __format_timestamp formats a timestamp to logz.io's acceptable timestamp format 'yyyy-MM-ddTHH:mm:ss.SSSZ'
     def __format_timestamp(self, timestamp):
         return "{}Z".format(timestamp.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3])
 
-    def __get_port_by_protocol(self):
-        if self.protocol == "https":
-            return "8071"
-        else:
-            return "8070"
-
+    # __ms_to_seconds converts ms to seconds
     def __ms_to_seconds(self, ms):
         return ms / 1000

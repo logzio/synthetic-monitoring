@@ -31,7 +31,6 @@ Keep the defaults and click Next on the following screen
 | logzioURL | (optional) Set a custom URL to ship metrics & logs to (e.g., http://localhost:9200). This overrides the region_code configurationfor further information. |
 | logzioRegion | Your Logz.io region code. For example if your region is US, then your region code is `us`. You can find your region code here: https://docs.logz.io/user-guide/accounts/account-region.html#regions-and-urls for further information. |
 | regions | A comma separated list of AWS regions for deployment, (example: us-east-1,ap-south-1). |
-| shippingProtocol | Protocol for shipping metrics and logs. Default is https and it better to leave it as is |
 | scrapeInterval | Cloudwatch events rate schedule Expression (in minutes). See https://docs.aws.amazon.com/AmazonCloudWatch/latest/events/ScheduledEvents.html#RateExpressions. |
 | url | URL to monitor. For example : https://www.logz.io |
 
@@ -77,8 +76,6 @@ Give your metrics some time to get from your system to ours, and then open [Logz
 Your metrics should appear in the preconfigured dashboard in your Metrics account. Use the Synthetic Monitoring Dashboard to monitor your website performance and availability via Logz.io.
 
 </div>
-
-
 
 
 

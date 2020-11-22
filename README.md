@@ -1,7 +1,7 @@
 # LightS
 
 LightS is a lightweight web monitoring solution to check availability and load performance of your web site. <br>
-LightS uses a simple script based on Python and Selenium. You can easily deploy it to your account on the supported cloud platforms. <br>
+LightS uses a simple script based on Python 3.7 and Selenium. You can easily deploy it to your account on the supported cloud platforms. <br>
 
 
 ## Supported platforms:
@@ -20,3 +20,6 @@ LightS uses a simple script based on Python and Selenium. You can easily deploy 
 
 ### Change log:
 * **0.0.1** - Initial release
+
+#### Acknowledgments
+Special thanks for [@vittorio-nardone](https://github.com/vittorio-nardone) for his excellent [repo](https://github.com/vittorio-nardone/selenium-chromium-lambda).
