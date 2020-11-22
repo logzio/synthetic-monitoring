@@ -98,3 +98,16 @@ def validate_max_dom_complete(max_dom_complete, default_max_dom):
             else:
                 raise TypeError("Invalid type for max_fom_complete. Should be empty or string")
     return max_dom_complete
+
+
+def validate_aws_scrape_interval(scrape_interval):
+    if scrape_interval is None or scrape_interval == "":
+        raise ValueError("Must enter value scrape interval")
+    if scrape_interval is not None and type(scrape_interval) is not str:
+        raise TypeError("Invalid type for scrape interval")
+    regex = r'^rate\([0-9]+ (minute|minutes|hour|hours|day|days)\)$'
+    match_obj = re.search(regex, scrape_interval)
+    if match_obj is not None and match_obj.group() is not None:
+        return True
+    else:
+        raise ValueError("Invalid value for scrape interval: {}".format(scrape_interval))
