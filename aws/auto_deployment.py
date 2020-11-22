@@ -1,18 +1,28 @@
 import os
 import json
 import boto3
+import time
 import requests
 import datetime
 
-LOGZIO_LISTENER = os.getenv("LOGZIO_CUSTOM_LISTENER", "listener.logz.io")
+LOGZIO_CUSTOM_LISTENER = os.environ["LOGZIO_CUSTOM_LISTENER"]
 LOGZIO_METRICS_TOKEN = os.environ["LOGZIO_METRICS_TOKEN"]
 LOGZIO_LOGS_TOKEN = os.environ["LOGZIO_LOGS_TOKEN"]
 LOGZIO_REGION = os.environ["LOGZIO_REGION"]
 SCRAPE_INTERVAL = os.environ["SCRAPE_INTERVAL"]
 REGIONS = list(os.environ["REGIONS"].replace(' ', '').split(","))
 PROTOCOL = os.getenv("PROTOCOL", "https")
+STACK_NAME=os.environ["STACK_NAME"]
 URL = os.environ["URL"]
 responseStatus = 'SUCCESS'
+
+if LOGZIO_CUSTOM_LISTENER == "":
+    if LOGZIO_REGION == "" or LOGZIO_REGION == "us":
+        LOGZIO_LISTENER = "https://listener.logz.io:8071"
+    else:
+        LOGZIO_LISTENER = "https://listener-{}.logz.io:8071".format(LOGZIO_REGION)
+else:
+    LOGZIO_LISTENER = LOGZIO_CUSTOM_LISTENER
 
 
 def _format_url(url):
@@ -34,7 +44,7 @@ def _send_data(data, is_metrics=True):
     try:
         port = _get_port_by_protocol()
         token = LOGZIO_METRICS_TOKEN if is_metrics else LOGZIO_LOGS_TOKEN
-        url = "{}://{}:{}/?token={}".format(PROTOCOL, LOGZIO_LISTENER, port, token)
+        url = "{}/?token={}".format(LOGZIO_LISTENER, token)
         response = requests.post(url, data=data)
         if not response.ok:
             # TODO
@@ -129,6 +139,15 @@ def lambda_handler(event, context):
             _deploy_stack(region)
     except Exception as e:
         _send_log("Error while creating cloudformation stacks. message: {}".format(e))
+        
+    time.sleep(240)
+    try:
+        _send_log("Starting to delete {} cloudformation stack".format(STACK_NAME))
+        client = boto3.client('cloudformation', region_name="us-east-1")
+        response = client.delete_stack(StackName=STACK_NAME)
+        _send_log(json.dumps(response))
+    except Exception as e:
+        _send_log("Error while deleting {} cloudformation stack. message: {}".format(STACK_NAME,e))
 
     try:
         req = requests.put(event['ResponseURL'], data=getResponse(event, context, responseStatus))
