@@ -4,7 +4,12 @@ import boto3
 import time
 import requests
 import datetime
+import sys
+sys.path.append(".")
+import input_validator
 
+
+MAX_DOM_COMPLETE = os.getenv("DOM_COMPLETE", "")
 LOGZIO_CUSTOM_LISTENER = os.environ["LOGZIO_CUSTOM_LISTENER"]
 LOGZIO_METRICS_TOKEN = os.environ["LOGZIO_METRICS_TOKEN"]
 LOGZIO_LOGS_TOKEN = os.environ["LOGZIO_LOGS_TOKEN"]
@@ -16,6 +21,20 @@ STACK_NAME=os.environ["STACK_NAME"]
 URL = os.environ["URL"]
 responseStatus = 'SUCCESS'
 
+# input validations
+input_validator.is_valid_logzio_token(LOGZIO_METRICS_TOKEN)
+input_validator.is_valid_logzio_token(LOGZIO_LOGS_TOKEN)
+input_validator.has_region_or_listener(LOGZIO_CUSTOM_LISTENER,LOGZIO_REGION)
+input_validator.is_valid_logzio_region_code(LOGZIO_REGION)
+for region in REGIONS:
+    input_validator.is_valid_system_region("aws",region)
+input_validator.is_valid_url(URL)
+input_validator.is_valid_function_name(os.getenv("AWS_LAMBDA_FUNCTION_NAME"))
+MAX_DOM_COMPLETE = input_validator.validate_max_dom_complete(MAX_DOM_COMPLETE,5)
+input_validator.validate_aws_scrape_interval(SCRAPE_INTERVAL)
+
+
+
 if LOGZIO_CUSTOM_LISTENER == "":
     if LOGZIO_REGION == "" or LOGZIO_REGION == "us":
         LOGZIO_LISTENER = "https://listener.logz.io:8071"
@@ -24,7 +43,7 @@ if LOGZIO_CUSTOM_LISTENER == "":
 else:
     LOGZIO_LISTENER = LOGZIO_CUSTOM_LISTENER
 
-
+# _format_url removes unvalid characters for deployed stack name
 def _format_url(url):
     f_url = url.replace('.', '')
     f_url = f_url.replace('://', '')
@@ -33,13 +52,14 @@ def _format_url(url):
 
 URL_LABEL = _format_url(URL)
 
-
+# __send_log sends log to your logz.io account
 def _send_log(message):
     timestamp = _format_timestamp(datetime.datetime.now(tz=datetime.timezone.utc))
     log = {"@timestamp": timestamp, "message": message, "type": "synthetic-monitoring"}
     _send_data(json.dumps(log), is_metrics=False)
 
-
+ # __send_data sends over HTTPS either a log or a metric to your logz.io account,
+# based on the token 
 def _send_data(data, is_metrics=True):
     try:
         port = _get_port_by_protocol()
@@ -60,11 +80,11 @@ def _get_port_by_protocol():
     else:
         return "8070"
 
-
+# __format_timestamp formats a timestamp to logz.io's acceptable timestamp format 'yyyy-MM-ddTHH:mm:ss.SSSZ'
 def _format_timestamp(timestamp):
     return "{}Z".format(timestamp.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3])
 
-
+# _deploy_stack uses boto3 libarary to deploy cloudforamtion stacks across all regions specified in `regions` parameter 
 def _deploy_stack(region):
     try:
         _send_log("Starting to deploy cloudformation stack to {} region".format(region))
@@ -73,6 +93,11 @@ def _deploy_stack(region):
             StackName='logzio-sm-{}-{}'.format(region, URL_LABEL),
             TemplateURL='https://sm-template.s3.amazonaws.com/sm-stack-{}.yaml'.format(region),
             Parameters=[
+                {
+                    'ParameterKey': 'domComplete',
+                    'ParameterValue': MAX_DOM_COMPLETE,
+                    'UsePreviousValue': False,
+                },
                 {
                     'ParameterKey': 'logzioURL',
                     'ParameterValue': LOGZIO_LISTENER,
@@ -128,7 +153,6 @@ def getResponse(event, context, responseStatus):
                     'LogicalResourceId': event['LogicalResourceId'],
                     }
     responseBody = json.dumps(responseBody)
-    print('RESPONSE BODY:n' + responseBody)
 
     return responseBody
 
@@ -152,10 +176,9 @@ def lambda_handler(event, context):
     try:
         req = requests.put(event['ResponseURL'], data=getResponse(event, context, responseStatus))
         if req.status_code != 200:
-            print(req.text)
+            _send_log(req.text)
             raise Exception('Received non 200 response while sending response to CFN.')
     except requests.exceptions.RequestException as e:
         _send_log(e)
         raise
     return
-    print("COMPLETE")

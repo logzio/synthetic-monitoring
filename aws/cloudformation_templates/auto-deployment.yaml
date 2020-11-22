@@ -33,14 +33,6 @@ Parameters:
     Type: String
     Description: Token for shipping logs to your Logz.io account.
     MinLength: 1
-  shippingProtocol:
-    Type: String
-    Description: Protocol for shipping metrics and logs (http | https).
-    Default: https
-    AllowedValues:
-      - http
-      - https
-    MinLength: 1
   domComplete:
     Type: Number
     Description: (optional) Seconds to wait for page's dom elements to complete.
@@ -49,7 +41,7 @@ Parameters:
     Type: String
     Description: Cloudwatch events rate schedule Expression (in minutes). See https://docs.aws.amazon.com/AmazonCloudWatch/latest/events/ScheduledEvents.html#RateExpressions
     Default: "rate(5 minutes)"
-    AllowedPattern: rate[(]([0-9]+)\s(minutes|minute)[)]
+    AllowedPattern: rate[(]([0-9]+)\s(minute|minutes|hour|hours|day|days)[)]
   regions:
     Type: String
     Description: "A comma seperated list of AWS regions for deployment, (example: us-east-1,ap-south-1).\nsupported regions:\nus-east-1\nus-west-1\nap-south-1\nap-northeast-2\nap-southeast-1\nap-southeast-2\nap-northeast-1\neu-central-1\neu-west-1\neu-west-2\neu-west-3\neu-north-1\nsa-east-1\nca-central-1"
@@ -84,6 +76,7 @@ Resources:
             - xray:GetSamplingTargets
             - xray:GetSamplingStatisticSummaries
             - cloudformation:CreateStack
+            - cloudformation:DeleteStack
             - lambda:*
             - S3:GetObject
             - iam:CreateRole
@@ -102,11 +95,12 @@ Resources:
         S3Bucket: sm-auto-deployment
         S3Key: lambda_function.zip
       Description: Python script for synthetic monitoring
-      Handler: lambda_function/lambda_function.lambda_handler
+      Handler: lambda_function.lambda_handler
       Role: !GetAtt LogzioLambdaExecutionRole.Arn
       Runtime: python3.7
-      Timeout: 180
+      Timeout: 420
       MemorySize: 512
+      ReservedConcurrentExecutions: 1
       Environment:
         Variables:
           SCRAPE_INTERVAL:
@@ -121,10 +115,10 @@ Resources:
             Ref: logzioMetricsToken
           LOGZIO_LOGS_TOKEN:
             Ref: logzioLogsToken
-          PROTOCOL:
-            Ref: shippingProtocol
           DOM_COMPLETE:
             Ref: domComplete
+          STACK_NAME:
+            Ref: AWS::StackName
           REGIONS:
             Ref: regions
       Layers:

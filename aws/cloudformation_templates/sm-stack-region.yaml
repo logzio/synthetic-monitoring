@@ -73,7 +73,7 @@ Resources:
         S3Bucket: logzio-sm-{region_code}
         S3Key: lambda_function.zip
       Description: Python script for synthetic monitoring
-      Handler: lambda_function/lambda_function.lambda_handler
+      Handler: lambda_function.lambda_handler
       Role: !GetAtt LogzioLambdaExecutionRole.Arn
       Runtime: python3.7
       Timeout: 180
