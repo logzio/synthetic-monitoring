@@ -1,0 +1,151 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Lambda function for auto deployment of Light s stacks in multiple regions.
+Parameters:
+  logzioRegion:
+    Type: String
+    Description: 'Your Logz.io region code. For example if your region is US, then your region code is `us`. You can find your region code here: https://docs.logz.io/user-guide/accounts/account-region.html#regions-and-urls for further information.'
+    Default: "us"
+    AllowedValues:
+      - us
+      - au
+      - ca
+      - eu
+      - nl
+      - uk
+      - wa
+    MinLength: 1
+  logzioURL:
+    Type: String
+    Description: (optional) Set a custom URL to ship metrics & logs to (e.g., http://localhost:9200). This overrides the region_code configuration
+      for further information.
+    Default: ""
+  url:
+    Type: String
+    Description: Url to monitor (e.g., https://www.mywebsite.com)
+    MinLength: 1
+    Default: "https://www.endpoint.com"
+    AllowedPattern: ^(http:\/\/www\.|https:\/\/www\.|http:\/\/|https:\/\/)?[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,5}(:[0-9]{1,5})?(\/.*)?$
+  logzioMetricsToken:
+    Type: String
+    Description: Token for shipping metrics to your Logz.io account.
+    MinLength: 1
+  logzioLogsToken:
+    Type: String
+    Description: Token for shipping logs to your Logz.io account.
+    MinLength: 1
+  domComplete:
+    Type: Number
+    Description: (optional) Seconds to wait for page's dom elements to complete.
+    Default: '5'
+  scrapeInterval:
+    Type: String
+    Description: Cloudwatch events rate schedule Expression (in minutes). See https://docs.aws.amazon.com/AmazonCloudWatch/latest/events/ScheduledEvents.html#RateExpressions
+    Default: "rate(5 minutes)"
+    AllowedPattern: rate[(]([0-9]+)\s(minute|minutes|hour|hours|day|days)[)]
+  regions:
+    Type: String
+    Description: "A comma seperated list of AWS regions for deployment, (example: us-east-1,ap-south-1).\nsupported regions:\nus-east-1\nus-west-1\nap-south-1\nap-northeast-2\nap-southeast-1\nap-southeast-2\nap-northeast-1\neu-central-1\neu-west-1\neu-west-2\neu-west-3\neu-north-1\nsa-east-1\nca-central-1"
+    MinLength: 1
+Resources:
+  LogzioLambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: "/"
+      Policies:
+      - PolicyName: Logzio-create-sm-stack
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            - xray:PutTraceSegments
+            - xray:PutTelemetryRecords
+            - xray:GetSamplingRules
+            - xray:GetSamplingTargets
+            - xray:GetSamplingStatisticSummaries
+            - cloudformation:CreateStack
+            - cloudformation:DeleteStack
+            - lambda:*
+            - S3:GetObject
+            - iam:CreateRole
+            - iam:PutRolePolicy
+            - iam:GetRolePolicy
+            - iam:GetRole
+            - iam:DeleteRole
+            - iam:DeleteRolePolicy
+            - iam:PassRole
+            - events:*
+            Resource: "*"
+  LogzioAutoDeploymentFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: sm-auto-deployment
+        S3Key: lambda_function.zip
+      Description: Python script for synthetic monitoring
+      Handler: lambda_function.lambda_handler
+      Role: !GetAtt LogzioLambdaExecutionRole.Arn
+      Runtime: python3.7
+      Timeout: 420
+      MemorySize: 512
+      ReservedConcurrentExecutions: 1
+      Environment:
+        Variables:
+          SCRAPE_INTERVAL:
+            Ref: scrapeInterval
+          LOGZIO_REGION:
+            Ref: logzioRegion
+          LOGZIO_CUSTOM_LISTENER:
+            Ref: logzioURL
+          URL:
+            Ref: url
+          LOGZIO_METRICS_TOKEN:
+            Ref: logzioMetricsToken
+          LOGZIO_LOGS_TOKEN:
+            Ref: logzioLogsToken
+          DOM_COMPLETE:
+            Ref: domComplete
+          STACK_NAME:
+            Ref: AWS::StackName
+          REGIONS:
+            Ref: regions
+      Layers:
+      - Ref: LogzioSyntheticMonitoringBinLayer
+      - Ref: LogzioSyntheticMonitoringPythonLayer
+  LogzioSyntheticMonitoringBinLayer:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      CompatibleRuntimes:
+      - python3.7
+      Content:
+        S3Bucket: sm-auto-deployment
+        S3Key: bin.zip
+      Description: Binaries of Chromium & Chromedriver for synthetic monitoring
+      LayerName: synthetic-monitoring-bin
+  LogzioSyntheticMonitoringPythonLayer:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      CompatibleRuntimes:
+      - python3.7
+      Content:
+        S3Bucket: sm-auto-deployment
+        S3Key: python.zip
+      Description: Selenium & Requests imported modules.
+      LayerName: synthetic-monitoring-python
+  LogzioInvoke:
+    Type: AWS::CloudFormation::CustomResource
+    Version: "1.0"
+    Properties:
+      ServiceToken: !GetAtt LogzioAutoDeploymentFunction.Arn
