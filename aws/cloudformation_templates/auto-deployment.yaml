@@ -33,10 +33,6 @@ Parameters:
     Type: String
     Description: Token for shipping logs to your Logz.io account.
     MinLength: 1
-  domComplete:
-    Type: Number
-    Description: (optional) Seconds to wait for page's dom elements to complete.
-    Default: '5'
   scrapeInterval:
     Type: String
     Description: Cloudwatch events rate schedule Expression (in minutes). See https://docs.aws.amazon.com/AmazonCloudWatch/latest/events/ScheduledEvents.html#RateExpressions
@@ -77,6 +73,7 @@ Resources:
             - xray:GetSamplingStatisticSummaries
             - cloudformation:CreateStack
             - cloudformation:DeleteStack
+            - cloudformation:DescribeStacks
             - lambda:*
             - S3:GetObject
             - iam:CreateRole
@@ -115,8 +112,6 @@ Resources:
             Ref: logzioMetricsToken
           LOGZIO_LOGS_TOKEN:
             Ref: logzioLogsToken
-          DOM_COMPLETE:
-            Ref: domComplete
           STACK_NAME:
             Ref: AWS::StackName
           REGIONS:
