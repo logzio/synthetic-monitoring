@@ -9,7 +9,6 @@ sys.path.append(".")
 import input_validator
 
 
-MAX_DOM_COMPLETE = os.getenv("DOM_COMPLETE", "")
 LOGZIO_CUSTOM_LISTENER = os.environ["LOGZIO_CUSTOM_LISTENER"]
 LOGZIO_METRICS_TOKEN = os.environ["LOGZIO_METRICS_TOKEN"]
 LOGZIO_LOGS_TOKEN = os.environ["LOGZIO_LOGS_TOKEN"]
@@ -24,13 +23,11 @@ responseStatus = 'SUCCESS'
 # input validations
 input_validator.is_valid_logzio_token(LOGZIO_METRICS_TOKEN)
 input_validator.is_valid_logzio_token(LOGZIO_LOGS_TOKEN)
-input_validator.has_region_or_listener(LOGZIO_CUSTOM_LISTENER,LOGZIO_REGION)
 input_validator.is_valid_logzio_region_code(LOGZIO_REGION)
 for region in REGIONS:
     input_validator.is_valid_system_region("aws",region)
 input_validator.is_valid_url(URL)
 input_validator.is_valid_function_name(os.getenv("AWS_LAMBDA_FUNCTION_NAME"))
-MAX_DOM_COMPLETE = input_validator.validate_max_dom_complete(MAX_DOM_COMPLETE,5)
 input_validator.validate_aws_scrape_interval(SCRAPE_INTERVAL)
 
 
@@ -58,7 +55,7 @@ def _send_log(message):
     log = {"@timestamp": timestamp, "message": message, "type": "synthetic-monitoring"}
     _send_data(json.dumps(log), is_metrics=False)
 
- # __send_data sends over HTTPS either a log or a metric to your logz.io account,
+# __send_data sends over HTTPS either a log or a metric to your logz.io account,
 # based on the token 
 def _send_data(data, is_metrics=True):
     try:
@@ -93,11 +90,6 @@ def _deploy_stack(region):
             StackName='logzio-sm-{}-{}'.format(region, URL_LABEL),
             TemplateURL='https://sm-template.s3.amazonaws.com/sm-stack-{}.yaml'.format(region),
             Parameters=[
-                {
-                    'ParameterKey': 'domComplete',
-                    'ParameterValue': MAX_DOM_COMPLETE,
-                    'UsePreviousValue': False,
-                },
                 {
                     'ParameterKey': 'logzioURL',
                     'ParameterValue': LOGZIO_LISTENER,
