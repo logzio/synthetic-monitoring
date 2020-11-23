@@ -1,8 +1,8 @@
 import os
 import sys
 sys.path.append(".")
-from lambda_function.lights import LightsMonitor
-import lambda_function.input_validator
+from lights import LightsMonitor
+import input_validator
 
 
 def lambda_handler(event, context):

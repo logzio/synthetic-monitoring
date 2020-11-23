@@ -151,11 +151,31 @@ def getResponse(event, context, responseStatus):
 
 def lambda_handler(event, context):
     try:
+        req = requests.put(event['ResponseURL'], data=getResponse(event, context, responseStatus))
+        if req.status_code != 200:
+            _send_log(req.text)
+            raise Exception('Received non 200 response while sending response to CFN.')
+    except requests.exceptions.RequestException as e:
+        _send_log(e)
+        raise
+    
+    try:
+        client = boto3.client('cloudformation', region_name="us-east-1")
+        existing_stack = client.describe_stacks(
+        StackName=STACK_NAME
+        )
+        if existing_stack['Stacks'][0]['StackStatus'] == 'DELETE_IN_PROGRESS':
+            return
+    except Exception as e:
+        _send_log("Error while checking cloudformation stack status. message: {}".format(e))
+        
+    try:
         for region in REGIONS:
             _deploy_stack(region)
     except Exception as e:
         _send_log("Error while creating cloudformation stacks. message: {}".format(e))
-        
+
+
     time.sleep(240)
     try:
         _send_log("Starting to delete {} cloudformation stack".format(STACK_NAME))
@@ -164,13 +184,3 @@ def lambda_handler(event, context):
         _send_log(json.dumps(response))
     except Exception as e:
         _send_log("Error while deleting {} cloudformation stack. message: {}".format(STACK_NAME,e))
-
-    try:
-        req = requests.put(event['ResponseURL'], data=getResponse(event, context, responseStatus))
-        if req.status_code != 200:
-            _send_log(req.text)
-            raise Exception('Received non 200 response while sending response to CFN.')
-    except requests.exceptions.RequestException as e:
-        _send_log(e)
-        raise
-    return
