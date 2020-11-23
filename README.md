@@ -13,10 +13,6 @@ LightS uses a simple script based on Python 3.7 and Selenium. You can easily dep
 |---|---|---|---|---|
 | 0.0.1 | 3.14.0 | 2.24.0 | 86.0.4240.0 | 86.0.4240.22.0 |
 
-### Contribution:
-
-*# TODO*
-
 
 ### Change log:
 * **0.0.1** - Initial release
