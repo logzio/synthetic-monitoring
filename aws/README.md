@@ -12,7 +12,7 @@ LightS is a web monitoring solution to check availability and load performance o
 
 To start just press the button and follow the instructions:
 
-[![Deploy to AWS](https://dytvr9ot2sszz.cloudfront.net/logz-docs/lights/LightS-button.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?templateURL=https://sm-template.s3.amazonaws.com/auto-deployment.yaml)
+[![Deploy to AWS](https://dytvr9ot2sszz.cloudfront.net/logz-docs/lights/LightS-button.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?templateURL=https://sm-template.s3.amazonaws.com/auto-deployment.yaml&stackName=logzio-sm-auto-deployment)
 
 You'll be taken to AWS, where you'll configure the resources to be deployed.
 Keep the defaults and click Next on the following screen
@@ -25,7 +25,6 @@ Keep the defaults and click Next on the following screen
 
 | Parameter | Description |
 |---|---|
-| Stack name | Unique name for the cloudformation stack |
 | logzioLogsToken | Token for shipping logs to your Logz.io account. |
 | logzioMetricsToken | Token for shipping metrics to your Logz.io account. |
 | logzioURL | (optional) Set a custom URL to ship metrics & logs to (e.g., http://localhost:9200). This overrides the region_code configurationfor further information. |
