@@ -32,7 +32,7 @@ class TestLightS(TestCase):
 
     # Tests monitor func raises ValueError and TypeError for invalid urls
     def test_monitor_invalid_url(self):
-        invalid_urls = ["just.a.string", ""]
+        invalid_urls = ["just.a.string", "", "1", "aa:aa"]
         for url in invalid_urls:
             with self.assertRaises(ValueError):
                 lights = LightsMonitor(url=url,
