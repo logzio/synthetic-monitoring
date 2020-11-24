@@ -35,7 +35,7 @@ Parameters:
     MinLength: 1
   scrapeInterval:
     Type: String
-    Description: Cloudwatch events rate schedule Expression (in minutes). See https://docs.aws.amazon.com/AmazonCloudWatch/latest/events/ScheduledEvents.html#RateExpressions
+    Description: Cloudwatch events rate schedule Expression. See https://docs.aws.amazon.com/AmazonCloudWatch/latest/events/ScheduledEvents.html#RateExpressions
     Default: "rate(5 minutes)"
     AllowedPattern: rate[(]([0-9]+)\s(minute|minutes|hour|hours|day|days)[)]
   regions:
