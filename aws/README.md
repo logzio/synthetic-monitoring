@@ -76,5 +76,9 @@ Your metrics should appear in the preconfigured dashboard in your Metrics accoun
 
 </div>
 
+#### Important notes:
+* The lambda function will be deployed to **your** AWS account.
+* Due to setup and initialization, the lambda function's first run may take longer than usual.
+
 
 
