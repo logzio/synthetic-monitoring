@@ -88,21 +88,9 @@ class TestLightS(TestCase):
                                        function_name=self.TEST_FUNCTION_NAME,
                                        system="none")
 
-    # Tests monitor func raises ValueError when no logzio region code or listener are inserted
-    def test_monitor_no_logzio_region_code_or_listener(self):
-        with self.assertRaises(ValueError):
-            lightS = LightsMonitor(url=self.TEST_URL,
-                                   logs_token=self.TEST_LOGS_TOKEN,
-                                   metrics_token=self.TEST_METRICS_TOKEN,
-                                   logzio_region_code="",
-                                   logzio_listener="",
-                                   region="",
-                                   function_name=self.TEST_FUNCTION_NAME,
-                                   system="none")
-
     # Tests monitor func raises ValueError and TypeError for invalid logzio region code
     def test_monitor_invalid_logzio_region_code(self):
-        invalid_regions = ["euu", "ab", "22", ""]
+        invalid_regions = ["euu", "ab", "22"]
         for region in invalid_regions:
             with self.assertRaises(ValueError):
                 lightS = LightsMonitor(url=self.TEST_URL,
