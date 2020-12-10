@@ -2,9 +2,9 @@ import os
 import sys
 import threading
 # For local testing please comment the following line:
-# sys.path.append(".")
+sys.path.append(".")
 # For local testing please uncomment the following line:
-sys.path.append("..")
+# sys.path.append("..")
 from lights import LightsMonitor
 import input_validator
 
