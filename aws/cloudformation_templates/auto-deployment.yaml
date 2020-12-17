@@ -19,12 +19,12 @@ Parameters:
     Description: (optional) Set a custom URL to ship metrics & logs to (e.g., http://localhost:9200). This overrides the region_code configuration
       for further information.
     Default: ""
-  url:
+  urlList:
     Type: String
-    Description: Url to monitor (e.g., https://www.mywebsite.com)
+    Description: Comma seperated list of url's to monitor (e.g., https://www.mywebsite.com,https://www.mysecondwebsite.com)
     MinLength: 1
     Default: "https://www.endpoint.com"
-    AllowedPattern: ^(http:\/\/www\.|https:\/\/www\.|http:\/\/|https:\/\/)?[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,5}(:[0-9]{1,5})?(\/.*)?$
+    AllowedPattern: (http:\/\/www\.|https:\/\/www\.|http:\/\/|https:\/\/)?[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,5}(:[0-9]{1,5})?(\/.*)?(?:(?:,)(http:\/\/www\.|https:\/\/www\.|http:\/\/|https:\/\/)?[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,5}(:[0-9]{1,5})?(\/.*)?)*
   logzioMetricsToken:
     Type: String
     Description: Token for shipping metrics to your Logz.io account.
@@ -35,9 +35,15 @@ Parameters:
     MinLength: 1
   scrapeInterval:
     Type: String
-    Description: Cloudwatch events rate schedule Expression. See https://docs.aws.amazon.com/AmazonCloudWatch/latest/events/ScheduledEvents.html#RateExpressions
+    Description: Cloudwatch events rate schedule Expression (in minutes). See https://docs.aws.amazon.com/AmazonCloudWatch/latest/events/ScheduledEvents.html#RateExpressions
     Default: "rate(5 minutes)"
     AllowedPattern: rate[(]([0-9]+)\s(minute|minutes|hour|hours|day|days)[)]
+  memorySize:
+    Type: Number
+    Description: Function memory size (a value between 128 - 10240). We reccomend to increase the memory size in a relative way if your monitoring more than 2 url's.
+    MinValue: 128
+    MaxValue: 10240
+    Default : 512
   regions:
     Type: String
     Description: "A comma seperated list of AWS regions for deployment, (example: us-east-1,ap-south-1).\nsupported regions:\nus-east-1\nus-west-1\nap-south-1\nap-northeast-2\nap-southeast-1\nap-southeast-2\nap-northeast-1\neu-central-1\neu-west-1\neu-west-2\neu-west-3\neu-north-1\nsa-east-1\nca-central-1"
@@ -90,7 +96,7 @@ Resources:
     Properties:
       Code:
         S3Bucket: sm-auto-deployment
-        S3Key: lambda_function.zip
+        S3Key: 0.0.2/lambda_function.zip
       Description: Python script for synthetic monitoring
       Handler: lambda_function.lambda_handler
       Role: !GetAtt LogzioLambdaExecutionRole.Arn
@@ -107,7 +113,7 @@ Resources:
           LOGZIO_CUSTOM_LISTENER:
             Ref: logzioURL
           URL:
-            Ref: url
+            Ref: urlList
           LOGZIO_METRICS_TOKEN:
             Ref: logzioMetricsToken
           LOGZIO_LOGS_TOKEN:
@@ -116,6 +122,8 @@ Resources:
             Ref: AWS::StackName
           REGIONS:
             Ref: regions
+          MEMORY:
+            Ref: memorySize
       Layers:
       - Ref: LogzioSyntheticMonitoringBinLayer
       - Ref: LogzioSyntheticMonitoringPythonLayer
@@ -126,7 +134,7 @@ Resources:
       - python3.7
       Content:
         S3Bucket: sm-auto-deployment
-        S3Key: bin.zip
+        S3Key: 0.0.2/bin.zip
       Description: Binaries of Chromium & Chromedriver for synthetic monitoring
       LayerName: synthetic-monitoring-bin
   LogzioSyntheticMonitoringPythonLayer:
@@ -136,7 +144,7 @@ Resources:
       - python3.7
       Content:
         S3Bucket: sm-auto-deployment
-        S3Key: python.zip
+        S3Key: 0.0.2/python.zip
       Description: Selenium & Requests imported modules.
       LayerName: synthetic-monitoring-python
   LogzioInvoke:
