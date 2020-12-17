@@ -31,7 +31,8 @@ Keep the defaults and click Next on the following screen
 | logzioRegion | Your Logz.io region code. For example if your region is US, then your region code is `us`. You can find your region code here: https://docs.logz.io/user-guide/accounts/account-region.html#regions-and-urls for further information. |
 | regions | A comma separated list of AWS regions for deployment, (example: us-east-1,ap-south-1). |
 | scrapeInterval | Cloudwatch events rate schedule Expression (in minutes). See https://docs.aws.amazon.com/AmazonCloudWatch/latest/events/ScheduledEvents.html#RateExpressions. |
-| url | a comma-delimited list of the URLs you want to monitor. For example : https://www.logz.io,https://example.com |
+| url | A comma-delimited list of the URLs you want to monitor. For example : https://www.logz.io,https://example.com |
+| memory | `Default: 512 (MB)`. The memory size you want to assign to the lambda function that runs LightS. <br> Note that the more URLs you choose to monitor, the more memory you'll need. <br> 512 MB is the minimum size we recommend. |
 
 and click Next
 

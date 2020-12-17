@@ -18,6 +18,7 @@ LightS uses a simple script based on Python 3.7 and Selenium. You can easily dep
 
 
 ### Change log:
+* **0.0.2** - Supports monitoring multiple urls.
 * **0.0.1** - Initial release
 
 #### Acknowledgments
