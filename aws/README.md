@@ -12,7 +12,7 @@ LightS is a web monitoring solution to check availability and load performance o
 
 To start just press the button and follow the instructions:
 
-[![Deploy to AWS](https://dytvr9ot2sszz.cloudfront.net/logz-docs/lights/LightS-button.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?templateURL=https://sm-template.s3.amazonaws.com/auto-deployment.yaml&stackName=logzio-sm-auto-deployment)
+[![Deploy to AWS](https://dytvr9ot2sszz.cloudfront.net/logz-docs/lights/LightS-button.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/create/template?templateURL=https://sm-template.s3.amazonaws.com/0.0.2/auto-deployment.yaml&stackName=logzio-sm-auto-deployment)
 
 You'll be taken to AWS, where you'll configure the resources to be deployed.
 Keep the defaults and click Next on the following screen
