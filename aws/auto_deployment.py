@@ -17,7 +17,7 @@ SCRAPE_INTERVAL = os.environ["SCRAPE_INTERVAL"]
 REGIONS = list(os.environ["REGIONS"].replace(' ', '').split(","))
 PROTOCOL = os.getenv("PROTOCOL", "https")
 STACK_NAME=os.environ["STACK_NAME"]
-URL = os.environ["URL"]
+URLS = os.environ["URLS"]
 MEMORY = os.environ["MEMORY"]
 responseStatus = 'SUCCESS'
 
@@ -46,7 +46,7 @@ def _format_url(url):
     return f_url
 
 
-URL_LABEL = _format_url(URL)
+URL_LABEL = _format_url(URLS)
 
 # __send_log sends log to your logz.io account
 def _send_log(message):
@@ -110,8 +110,8 @@ def _deploy_stack(region):
                     'UsePreviousValue': False,
                 },
                 {
-                    'ParameterKey': 'url',
-                    'ParameterValue': URL,
+                    'ParameterKey': 'urls',
+                    'ParameterValue': URLS,
                     'UsePreviousValue': False,
                 },
                 {

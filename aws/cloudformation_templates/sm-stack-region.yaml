@@ -21,7 +21,7 @@ Parameters:
     Description: Logz.io listener URL. See https://docs.logz.io/user-guide/accounts/account-region.html#regions-and-urls
       for further information.
     Default: ""
-  url:
+  urls:
     Type: String
     Description: Url to monitor.
     Default: ''
@@ -88,8 +88,8 @@ Resources:
             Ref: logzioURL
           LOGZIO_REGION:
             Ref: logzioRegion
-          URL:
-            Ref: url
+          URLS:
+            Ref: urls
           LOGZIO_METRICS_TOKEN:
             Ref: logzioMetricsToken
           LOGZIO_LOGS_TOKEN:

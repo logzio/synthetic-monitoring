@@ -112,7 +112,7 @@ Resources:
             Ref: logzioRegion
           LOGZIO_CUSTOM_LISTENER:
             Ref: logzioURL
-          URL:
+          URLS:
             Ref: urlList
           LOGZIO_METRICS_TOKEN:
             Ref: logzioMetricsToken
