@@ -12,7 +12,7 @@ threads = []
 
 
 def lambda_handler(event, context):
-    urls_str = os.getenv("URL")
+    urls_str = os.getenv("URLS")
     logs_token = os.getenv("LOGZIO_LOGS_TOKEN")
     metrics_token = os.getenv("LOGZIO_METRICS_TOKEN")
     logzio_region_code = os.getenv("LOGZIO_REGION", "")

@@ -37,7 +37,7 @@ logzio/lambda-lights
 | --- | --- |
 | `LOGZIO_METRICS_TOKEN` | **Required**. Your logzio metrics account token. |
 | `LOGZIO_LOGS_TOKEN` | **Required**. Your logzio logs account token. |
-| `URL` | **Required**. A comma-separated list of the urls you'd want to monitor. |
+| `URLS` | **Required**. A comma-separated list of the urls you'd want to monitor. |
 | `LOGZIO_REGION` | `Default: us`. Your Logz.io region code. For example if your region is US, then your region code is `us`. You can find your region code here: https://docs.logz.io/user-guide/accounts/account-region.html#regions-and-urls for further information. |
 | `AWS_LAMBDA_FUNCTION_NAME`| `Default: aws-test`. <br>Your test lambda function name. |
 | `AWS_LAMBDA_FUNCTION_MEMORY_SIZE` | `Default: 512`. Your function's memory size (in MB). |

@@ -17,7 +17,7 @@ class TestAWS(unittest.TestCase):
     def setUp(self):
         os.environ["LOGZIO_METRICS_TOKEN"] = "metricsLogzioTokenlogzioTokenLog"
         os.environ["LOGZIO_LOGS_TOKEN"] = "logsLogzioTokenlogzioTokenLogzio"
-        os.environ["URL"] = "https://example.com,http://example.com"
+        os.environ["URLS"] = "https://example.com,http://example.com"
         os.environ["AWS_LAMBDA_FUNCTION_NAME"] = "test-func"
         os.environ["LOGZIO_REGION"] = "us"
         os.environ["AWS_REGION"] = "us-east-1"
