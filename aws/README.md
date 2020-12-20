@@ -21,7 +21,7 @@ Keep the defaults and click Next on the following screen
 
 ##### Specify stack details
 
-![Customized template](https://dytvr9ot2sszz.cloudfront.net/logz-docs/lights/lights-params-nov23.png)
+![Customized template](https://dytvr9ot2sszz.cloudfront.net/logz-docs/lights/lights-params-12182020.png)
 
 | Parameter | Description |
 |---|---|
