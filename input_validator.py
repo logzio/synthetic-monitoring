@@ -37,6 +37,29 @@ def is_supported_system(system):
     return sys_region_adapter.validate_system(system)
 
 
+# validate_url_list checks that the urls list is not empty and that the urls are valid, and returns the final list
+# with the valid urls.
+# Invalid url will not be monitored.
+def validate_url_list(urls):
+    if urls is not None and type(urls) is not list:
+        raise TypeError("URL should be a list")
+    if len(urls) == 0:
+        raise ValueError("Cannot start monitoring, should include at least one url to monitor.")
+    valid_urls = []
+    for url in urls:
+        try:
+            is_valid_url(url)
+            valid_urls.append(url)
+        except (ValueError, TypeError) as e:
+            print("Can't monitor url: {}.\n{}".format(url, e))
+        except Exception as e:
+            print("Can't monritor url: {}.\nUnexpected error occured: {}".format(url, e))
+
+    if len(valid_urls) == 0:
+        raise ValueError("Couldn't find any valid urls. Can't start monitoring.")
+    return valid_urls
+
+
 # is_valid_url checks with a regex that a url is in a valid format
 def is_valid_url(url):
     if type(url) is not str:

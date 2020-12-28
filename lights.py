@@ -20,7 +20,7 @@ class LightsMonitor(object):
     # class constants:
     SUCCESS = 1
     FAILURE = 0
-    TOKEN_LENGHT = 32
+    TOKEN_LENGTH = 32
     MAX_DOM_COMPLETE = 5.0
 
     url: str
@@ -90,6 +90,7 @@ class LightsMonitor(object):
                 if all_metrics:
                     for metric in all_metrics:
                         self.__send_metrics(metric)
+                    self.__create_and_send_supervision_metric(len(all_metrics))
                     self.__send_log("Sending {} metrics documents".format(len(all_metrics)))
                 driver.quit()
 
@@ -295,6 +296,20 @@ class LightsMonitor(object):
                 except:
                     # TODO
                     pass
+
+    # __create_and_send_supervision_metric creates a metric with the number of metrics that were sent, and sends it to
+    # your logz.io account
+    def __create_and_send_supervision_metric(self, num_metrics):
+        try:
+            timestamp = self.__format_timestamp(datetime.datetime.now(tz=datetime.timezone.utc))
+            data = {"@timestamp": timestamp,
+                    "type": "synthetic-monitoring",
+                    "metrics": {"metrics_sent": num_metrics}}
+            dimensions = {"country": self.__get_country_code(), "region": self.region, "url": self.url}
+            data["dimensions"] = dimensions
+            self.__send_metrics(data)
+        except Exception as e:
+            self.__send_log("Error occured while creating supervision metric:\n{}".format(e))
 
     # __get_chrome_binary_by_system returns the path to the web driver binary, according to the system that's being used
     def __get_chrome_binary_by_system(self):

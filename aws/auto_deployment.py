@@ -17,7 +17,8 @@ SCRAPE_INTERVAL = os.environ["SCRAPE_INTERVAL"]
 REGIONS = list(os.environ["REGIONS"].replace(' ', '').split(","))
 PROTOCOL = os.getenv("PROTOCOL", "https")
 STACK_NAME=os.environ["STACK_NAME"]
-URL = os.environ["URL"]
+URLS = os.environ["URLS"]
+MEMORY = os.environ["MEMORY"]
 responseStatus = 'SUCCESS'
 
 # input validations
@@ -26,7 +27,6 @@ input_validator.is_valid_logzio_token(LOGZIO_LOGS_TOKEN)
 input_validator.is_valid_logzio_region_code(LOGZIO_REGION)
 for region in REGIONS:
     input_validator.is_valid_system_region("aws",region)
-input_validator.is_valid_url(URL)
 input_validator.is_valid_function_name(os.getenv("AWS_LAMBDA_FUNCTION_NAME"))
 input_validator.validate_aws_scrape_interval(SCRAPE_INTERVAL)
 
@@ -42,12 +42,11 @@ else:
 
 # _format_url removes unvalid characters for deployed stack name
 def _format_url(url):
-    f_url = url.replace('.', '')
-    f_url = f_url.replace('://', '')
+    f_url = url.replace('.', '').replace('://', '').replace(',','')
     return f_url
 
 
-URL_LABEL = _format_url(URL)
+URL_LABEL = _format_url(URLS)
 
 # __send_log sends log to your logz.io account
 def _send_log(message):
@@ -88,11 +87,16 @@ def _deploy_stack(region):
         client = boto3.client('cloudformation', region_name=region)
         response = client.create_stack(
             StackName='logzio-sm-{}-{}'.format(region, URL_LABEL),
-            TemplateURL='https://sm-template.s3.amazonaws.com/sm-stack-{}.yaml'.format(region),
+            TemplateURL='https://sm-template.s3.amazonaws.com/0.0.2/sm-stack-{}.yaml'.format(region),
             Parameters=[
                 {
                     'ParameterKey': 'logzioURL',
                     'ParameterValue': LOGZIO_LISTENER,
+                    'UsePreviousValue': False,
+                },
+                {
+                    'ParameterKey': 'memorySize',
+                    'ParameterValue': MEMORY,
                     'UsePreviousValue': False,
                 },
                 {
@@ -106,8 +110,8 @@ def _deploy_stack(region):
                     'UsePreviousValue': False,
                 },
                 {
-                    'ParameterKey': 'url',
-                    'ParameterValue': URL,
+                    'ParameterKey': 'urls',
+                    'ParameterValue': URLS,
                     'UsePreviousValue': False,
                 },
                 {
