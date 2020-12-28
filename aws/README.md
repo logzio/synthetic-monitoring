@@ -32,7 +32,7 @@ Keep the defaults and click Next on the following screen
 | regions | A comma separated list of AWS regions for deployment, (example: us-east-1,ap-south-1). |
 | scrapeInterval | Cloudwatch events rate schedule Expression (in minutes). See https://docs.aws.amazon.com/AmazonCloudWatch/latest/events/ScheduledEvents.html#RateExpressions. |
 | urls | A comma-delimited list of the URLs you want to monitor. For example : https://www.logz.io,https://example.com |
-| memory | `Default: 512 (MB)`. The memory size you want to assign to the lambda function that runs LightS. <br> Note that the more URLs you choose to monitor, the more memory you'll need. <br> 512 MB is the minimum size we recommend. |
+| memory | `Default: 512 (MB)`. The memory size you want to assign to the lambda function that runs LightS. <br> Note that the more URLs you choose to monitor, the more memory you'll need. These default settings are just a starting point. Check your Lambda usage regularly, and adjust that value if you need to. <br> 512 MB is the minimum size we recommend. |
 
 and click Next
 
